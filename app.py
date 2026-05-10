@@ -5,7 +5,7 @@ import pandas as pd
 # Konfiguration der Seite (Breites Layout für bessere Übersicht)
 st.set_page_config(page_title="Aktien-Volatilität", layout="wide")
 
-st.title("Aktienmarkt-Volatilität: Usability-Dashboard")
+st.title("Aktienmarkt Dashboard")
 
 # --- EINSTELLUNGEN (SIDEBAR) ---
 st.sidebar.header("⚙️ Einstellungen")
