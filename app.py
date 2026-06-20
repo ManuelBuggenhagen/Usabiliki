@@ -2,7 +2,7 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import numpy as np
-import plotly.graph_objects as go  # NEU: Für das Tachometer-Diagramm
+import plotly.graph_objects as go  # Für das Netzdiagramm
 
 # Konfiguration der Seite
 st.set_page_config(page_title="Premium Aktien- & Volatilitäts-Dashboard", layout="wide")
@@ -97,16 +97,16 @@ if ticker_input_1:
                     "📋 Rohdaten"
                 ])
 
-                # --- Strings für den Report-Export sammeln ---
+                # Report-String vorbereiten
                 report_text = f"=== ANLAGE-REPORT ===\nZeitraum: {time_period}\n\n"
 
-                # --- TAB 1: ANLAGE-KOMPASS (JETZT MIT TACHO-DIAGRAMM!) ---
+                # --- TAB 1: ANLAGE-KOMPASS (JETZT MIT RADAR/SPIDER CHART!) ---
                 with tab1:
-                    st.subheader("💡 Entscheidungshilfe für Gelegenheitsanleger")
+                    st.subheader("💡 Entscheidungshilfe & Aktien-Stärkenprofil")
                     kompass_cols = st.columns(2 if not df_2.empty else 1)
 
 
-                    def rendere_kompass(ticker, df, info, col):
+                    def rendere_kompass(ticker, df, info, col, color_theme):
                         global report_text
                         col.markdown(f"### **{ticker}**")
                         current_price = df['Close'].iloc[-1]
@@ -129,65 +129,123 @@ if ticker_input_1:
 
                         report_text += f"Aktie: {ticker}\nSignal: {signal}\n"
 
-                        target = info.get('targetMeanPrice')
-                        if target:
-                            potential = ((target / current_price) - 1) * 100
-                            col.metric(label="Mittleres Analysten-Kursziel", value=f"{target:.2f}",
-                                       delta=f"{potential:.2f}% Potenzial")
-                            report_text += f"Kursziel: {target:.2f} ({potential:.2f}% Potenzial)\n"
-
-                        # Volatilitäts-Wetterbericht Berechnung
-                        beta = info.get('beta', 1.0)
-                        score = int(np.clip(round(beta * 5), 1, 10))
-
-                        if score <= 3:
-                            wetter_status = "Sonnig & Ruhig"
-                            wetter_desc = "Diese Aktie schwankt kaum. Perfekt für risikoarme Anleger zum langfristigen Halten."
-                        elif score <= 6:
-                            wetter_status = "Leicht Wechselhaft"
-                            wetter_desc = "Normale Marktschwankungen. Solides Fundament mit gesundem Risiko-Rendite-Verhältnis."
-                        elif score <= 8:
-                            wetter_status = "Stürmisch"
-                            wetter_desc = "Erhöhte Volatilität! Der Kurs bricht gerne stark aus. Nichts für schwache Nerven."
+                        # DYNAMISCHE LOGIK FÜR DIE 5 NÄHRWERTE DES NETZDIAGRAMMS (Skala 1-5)
+                        # 1. Bewertung (Günstiges KGV = Hoher Score)
+                        kgv = info.get('trailingPE')
+                        if not kgv:
+                            kgv_score = 3
+                        elif kgv < 15:
+                            kgv_score = 5
+                        elif kgv < 25:
+                            kgv_score = 4
+                        elif kgv < 40:
+                            kgv_score = 2
                         else:
-                            wetter_status = "Extremer Wirbelsturm"
-                            wetter_desc = "Extreme Ausschläge! Sehr hohes Risiko, aber auch riesige Chancensprünge."
+                            kgv_score = 1
 
-                        report_text += f"Risiko-Score: {score}/10 ({wetter_status})\n\n"
+                        # 2. Dividende (Hohe Dividende = Hoher Score)
+                        div = info.get('dividendYield', 0)
+                        if not div or div == 0:
+                            div_score = 1
+                        elif div < 0.015:
+                            div_score = 2
+                        elif div < 0.035:
+                            div_score = 4
+                        else:
+                            div_score = 5
 
-                        # INTERAKTIVES TACHOMETER-DIAGRAMM (GAUGE CHART)
-                        fig = go.Figure(go.Indicator(
-                            mode="gauge+number",
-                            value=score,
-                            domain={'x': [0, 1], 'y': [0, 1]},
-                            title={'text': f"Risiko-Wetter: {wetter_status}", 'font': {'size': 16}},
-                            gauge={
-                                'axis': {'range': [1, 10], 'tickvals': [1, 3, 6, 8, 10],
-                                         'ticktext': ['1', 'Ruhig', 'Normal', 'Sturm', '10']},
-                                'bar': {'color': "#2c3e50"},  # Farbe der Nadel / des Balkens
-                                'steps': [
-                                    {'range': [1, 3], 'color': '#2ecc71'},  # Grün
-                                    {'range': [3, 6], 'color': '#f1c40f'},  # Gelb
-                                    {'range': [6, 8], 'color': '#e67e22'},  # Orange
-                                    {'range': [8, 10], 'color': '#e74c3c'}  # Rot
-                                ],
-                            }
+                        # 3. Stabilität (Niedriges Beta = Hohe Stabilität/Score)
+                        beta = info.get('beta', 1.0)
+                        if beta < 0.75:
+                            beta_score = 5
+                        elif beta < 1.05:
+                            beta_score = 4
+                        elif beta < 1.35:
+                            beta_score = 3
+                        elif beta < 1.75:
+                            beta_score = 2
+                        else:
+                            beta_score = 1
+
+                        # 4. Analysten-Potenzial
+                        target = info.get('targetMeanPrice', current_price)
+                        potential = ((target / current_price) - 1) * 100
+                        if potential > 20:
+                            pot_score = 5
+                        elif potential > 8:
+                            pot_score = 4
+                        elif potential > 0:
+                            pot_score = 3
+                        elif potential < -5:
+                            pot_score = 1
+                        else:
+                            pot_score = 2
+
+                        # 5. Trend-Stärke (Abstand zum 30-Tage SMA)
+                        if current_price > (sma_30 * 1.06):
+                            trend_score = 5
+                        elif current_price > sma_30:
+                            trend_score = 4
+                        elif current_price > (sma_30 * 0.94):
+                            trend_score = 3
+                        else:
+                            trend_score = 1
+
+                        # Daten für das Radar Chart strukturieren
+                        categories = ['Günstige Bewertung', 'Dividenden-Rendite', 'Kurs-Stabilität (Beta)',
+                                      'Analysten-Potenzial', 'Trend-Stärke (SMA)']
+                        values = [kgv_score, div_score, beta_score, pot_score, trend_score]
+
+                        # Plotly verlangt, dass der Kreis geschlossen wird (erster Wert wird wiederholt)
+                        categories += [categories[0]]
+                        values += [values[0]]
+
+                        # RADAR CHART GENERIEREN
+                        fig = go.Figure()
+                        fig.add_trace(go.Scatterpolar(
+                            r=values,
+                            theta=categories,
+                            fill='toself',
+                            fillcolor=color_theme['fill'],
+                            line=dict(color=color_theme['line'], width=2),
+                            name=ticker
                         ))
-                        # Layout kompakter machen, damit es perfekt in die Spalten passt
-                        fig.update_layout(height=220, margin=dict(l=30, r=30, t=50, b=10))
 
-                        # Chart in der entsprechenden Spalte rendern
+                        fig.update_layout(
+                            polar=dict(
+                                radialaxis=dict(
+                                    visible=True,
+                                    range=[0, 5],
+                                    tickvals=[1, 3, 5],
+                                    ticktext=['Gering', 'Moderat', 'Ausgezeichnet'],
+                                    font=dict(size=10)
+                                ),
+                                angularaxis=dict(font=dict(size=11, weight="bold"))
+                            ),
+                            showlegend=False,
+                            height=320,
+                            margin=dict(l=50, r=50, t=30, b=30)
+                        )
+
+                        # Chart rendern
                         col.plotly_chart(fig, use_container_width=True)
-                        col.write(wetter_desc)
 
-                        # Progressive Disclosure für Profis
-                        with col.expander("ℹ️ Mathematische Details"):
-                            col.write(f"**Exakter Beta-Faktor:** {beta:.2f}")
+                        # Textliche Erklärung direkt darunter (Usability!)
+                        col.markdown(f"**🔍 Profil-Zusammenfassung:**")
+                        col.write(
+                            f"* **Risiko-Check:** Die Aktie schwankt im Vergleich zum Markt mit einem Beta von `{beta:.2f}`.")
+                        if target:
+                            col.write(
+                                f"* **Experten-Kursziel:** Analysten sehen ein mittleres Ziel bei `{target:.2f}` ({potential:.2f}% Luft nach oben).")
 
 
-                    rendere_kompass(ticker_input_1, df_1, info_1, kompass_cols[0])
+                    # Farb-Themes für die optische Unterscheidung der zwei Aktien
+                    theme_1 = {'fill': 'rgba(52, 152, 219, 0.3)', 'line': '#2980b9'}  # Blau
+                    theme_2 = {'fill': 'rgba(155, 89, 182, 0.3)', 'line': '#8e44ad'}  # Lila
+
+                    rendere_kompass(ticker_input_1, df_1, info_1, kompass_cols[0], theme_1)
                     if not df_2.empty:
-                        rendere_kompass(ticker_input_2, df_2, info_2, kompass_cols[1])
+                        rendere_kompass(ticker_input_2, df_2, info_2, kompass_cols[1], theme_2)
 
                     # Spickzettel-Export
                     st.markdown("---")
