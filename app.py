@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 
 # Konfiguration der Seite
-st.set_page_config(page_title="Aktien-Volatilität & Analyse", layout="wide")
+st.set_page_config(page_title="Premium Aktien- & Volatilitäts-Dashboard", layout="wide")
 st.title("🚀 Professionelles Aktien- & Volatilitäts-Dashboard")
 
 # --- EINSTELLUNGEN (SIDEBAR) ---
@@ -30,9 +30,9 @@ if ticker_input_2:
 
 # --- DATENABRUF & ERROR HANDLING ---
 if ticker_input_1:
-    with st.spinner("Lade Markdaten, Kennzahlen und News..."):
+    with st.spinner("Lade Markdaten, MSCI World Benchmark, Kennzahlen und News..."):
         try:
-            # Daten für Aktie 1
+            # 1. Hauptaktie laden
             data_1 = yf.Ticker(ticker_input_1)
             df_1 = data_1.history(period=time_period)
             try:
@@ -40,10 +40,17 @@ if ticker_input_1:
             except:
                 info_1 = {}
 
+            # 2. MSCI World als Benchmark im Hintergrund laden (URTH)
+            try:
+                msci_data = yf.Ticker("URTH")
+                df_msci = msci_data.history(period=time_period)
+            except:
+                df_msci = pd.DataFrame()
+
             if df_1.empty:
                 st.error(f"Keine Daten für {ticker_input_1} gefunden.")
             else:
-                # Daten für Aktie 2 (falls vorhanden)
+                # 3. Vergleichsaktie laden (falls vorhanden)
                 df_2 = pd.DataFrame()
                 info_2 = {}
                 if ticker_input_2:
@@ -56,7 +63,7 @@ if ticker_input_1:
                     if df_2.empty:
                         st.sidebar.warning(f"Keine Daten für {ticker_input_2} gefunden.")
 
-                # --- 1. ZENTRALE KPIs ("Auf einen Blick") ---
+                # --- ZENTRALE KPIs ("Auf einen Blick") ---
                 cols = st.columns(2 if not df_2.empty else 1)
 
 
@@ -79,69 +86,120 @@ if ticker_input_1:
 
                 st.markdown("---")
 
-                # --- 2. ERWEITERTE TABS ---
+                # --- ERWEITERTE TABS ---
                 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
                     "🔮 Anlage-Kompass",
                     "📈 Kursverlauf & Labor",
                     "🔬 Fundamental-Analyse",
-                    "💰 Rendite-Rechner",
+                    "💰 Rendite-Rechner & Mixer",
                     "📰 News & Schlagzeilen",
                     "📋 Rohdaten"
                 ])
 
-                # --- TAB 1: ANLAGE-KOMPASS ---
+                # --- Strings für den Report-Export sammeln ---
+                report_text = f"=== ANLAGE-REPORT ===\nZeitraum: {time_period}\n\n"
+
+                # --- TAB 1: ANLAGE-KOMPASS (Inkl. Feature 1 & Feature 4) ---
                 with tab1:
                     st.subheader("💡 Entscheidungshilfe für Gelegenheitsanleger")
                     kompass_cols = st.columns(2 if not df_2.empty else 1)
 
 
-                    def rendere_kompass(ticker, df, info, col):
+                    def rendere_kompass(ticker, df, info, col, is_main=True):
+                        global report_text
                         col.markdown(f"### **{ticker}**")
                         current_price = df['Close'].iloc[-1]
                         sma_30 = df['Close'].rolling(window=30).mean().iloc[-1] if len(df) >= 30 else current_price
                         rec_key = info.get('recommendationKey', 'none').lower()
 
+                        # Signalbestimmung
                         if "buy" in rec_key or current_price > (sma_30 * 1.03):
-                            col.success(
-                                "🟢 **Kauf-Signal / Nachkaufen**\n\nStarker Aufwärtstrend oder klare Kaufempfehlung der Analysten.")
+                            signal = "🟢 Kauf-Signal / Nachkaufen"
+                            details = "Starker Aufwärtstrend oder klare Kaufempfehlung der Analysten."
+                            col.success(f"**{signal}**\n\n{details}")
                         elif "sell" in rec_key or current_price < (sma_30 * 0.97):
-                            col.error(
-                                "🔴 **Verkaufs-Signal / Vorsicht**\n\nAbwärtstrend oder Analysten raten zum Ausstieg.")
+                            signal = "🔴 Verkaufs-Signal / Vorsicht"
+                            details = "Abwärtstrend oder Analysten raten zum Ausstieg."
+                            col.error(f"**{signal}**\n\n{details}")
                         else:
-                            col.warning(
-                                "🟡 **Halte-Signal / Abwarten**\n\nKein eindeutiger Trend. Bestehende Positionen halten.")
+                            signal = "🟡 Halte-Signal / Abwarten"
+                            details = "Kein eindeutiger Trend. Bestehende Positionen halten."
+                            col.warning(f"**{signal}**\n\n{details}")
+
+                        report_text += f"Aktie: {ticker}\nSignal: {signal}\n"
 
                         target = info.get('targetMeanPrice')
                         if target:
                             potential = ((target / current_price) - 1) * 100
                             col.metric(label="Mittleres Analysten-Kursziel", value=f"{target:.2f}",
                                        delta=f"{potential:.2f}% Potenzial")
+                            report_text += f"Kursziel: {target:.2f} ({potential:.2f}% Potenzial)\n"
 
-                        beta = info.get('beta')
-                        if beta:
-                            if beta > 1.3:
-                                status = "🔥 **Hoch** (Schwankt stärker als der Markt)"
-                            elif beta < 0.8:
-                                status = "🛡️ **Niedrig** (Sehr wertstabil & ruhig)"
-                            else:
-                                status = "⚖️ **Moderat** (Marktdurchschnitt)"
-                            col.write(f"**Risiko-Profil:** {status} *(Beta: {beta:.2f})*")
+                        # FEATURE 1: Volatilitäts-Wetterbericht (Risiko-Score)
+                        beta = info.get('beta', 1.0)
+
+                        # Berechnung eines verständlichen 1-10 Risiko-Scores basierend auf dem Beta
+                        score = int(clip_val := np.clip(round(beta * 5), 1, 10))
+
+                        if score <= 3:
+                            wetter_icon = "☀️"
+                            wetter_status = "Sonnig & Ruhig"
+                            wetter_desc = "Diese Aktie schwankt kaum. Perfekt für risikoarme Anleger zum langfristigen Halten."
+                        elif score <= 6:
+                            wetter_icon = "⛅"
+                            wetter_status = "Leicht Wechselhaft"
+                            wetter_desc = "Normale Marktschwankungen. Solides Fundament mit gesundem Risiko-Rendite-Verhältnis."
+                        elif score <= 8:
+                            wetter_icon = "⚡"
+                            wetter_status = "Stürmisch"
+                            wetter_desc = "Erhöhte Volatilität! Der Kurs bricht gerne stark aus. Nichts für schwache Nerven."
+                        else:
+                            wetter_icon = "🌪️"
+                            wetter_status = "Extremer Wirbelsturm"
+                            wetter_desc = "Extreme Ausschläge! Sehr hohes Risiko, aber auch riesige Chancensprünge."
+
+                        col.markdown(
+                            f"#### **Volatilitäts-Wetterbericht:** {wetter_icon} {wetter_status} *(Score: {score}/10)*")
+                        col.write(wetter_desc)
+                        report_text += f"Risiko-Score: {score}/10 ({wetter_status})\n\n"
+
+                        # Progressive Disclosure: Mathematischer Hintergrund im Expander versteckt
+                        with col.expander("ℹ️ Für Profis: Mathematische Details einsehen"):
+                            col.write(f"**Exakter Beta-Faktor:** {beta:.2f}")
+                            col.write(
+                                "Der Beta-Faktor misst die Schwankung im Vergleich zum Gesamtmarkt. Ein Wert von 1.00 bedeutet, dass die Aktie exakt so stark schwankt wie der Marktdurchschnitt.")
 
 
-                    rendere_kompass(ticker_input_1, df_1, info_1, kompass_cols[0])
+                    rendere_kompass(ticker_input_1, df_1, info_1, kompass_cols[0], is_main=True)
                     if not df_2.empty:
-                        rendere_kompass(ticker_input_2, df_2, info_2, kompass_cols[1])
+                        rendere_kompass(ticker_input_2, df_2, info_2, kompass_cols[1], is_main=False)
 
-                # --- TAB 2: KURSVERLAUF & VOLATILITÄTS-LABOR ---
+                    # FEATURE 4: Spickzettel-Export (Ganz unten platziert)
+                    st.markdown("---")
+                    st.markdown("#### 📄 Report mitnehmen")
+                    st.download_button(
+                        label="Anlage-Zusammenfassung als Text-Report herunterladen",
+                        data=report_text,
+                        file_name=f"Anlage_Zusammenfassung_{ticker_input_1}.txt",
+                        mime="text/plain",
+                        help="Generiert eine kompakte Notiz-Datei mit allen Signalen und Risiko-Scores für deine Unterlagen."
+                    )
+
+                # --- TAB 2: KURSVERLAUF & VOLATILITÄTS-LABOR (Inkl. Feature 3) ---
                 with tab2:
                     st.subheader("📈 Interaktive Chart-Analyse")
-                    st.markdown("**🔬 Volatilitäts-Labor (Zusatzwerkzeuge für Hauptaktie):**")
+                    st.markdown("**🔬 Volatilitäts-Labor (Zusatzwerkzeuge):**")
 
-                    lab_cols = st.columns(3)
+                    lab_cols = st.columns(4)
                     show_sma = lab_cols[0].checkbox("30-Tage-Durchschnitt (SMA)",
                                                     value=True) if not normalize else False
-                    show_bollinger = lab_cols[1].checkbox("Bollinger Bänder", value=False) if not normalize else False
+                    show_bollinger = lab_cols[1].checkbox("Bollinger Bänder (Risiko-Kanäle)",
+                                                          value=False) if not normalize else False
                     show_drawdown = lab_cols[2].checkbox("Max. Einbruch anzeigen", value=False)
+
+                    # FEATURE 3: Benchmark-Vergleich (MSCI World)
+                    show_msci = lab_cols[3].checkbox("Mit Weltmarkt vergleichen (MSCI World)", value=False,
+                                                     help="Zeigt die Entwicklung des globalen Aktienmarktes als Orientierungshilfe.")
 
                     chart_data = pd.DataFrame()
                     chart_data[ticker_input_1] = df_1['Close']
@@ -157,10 +215,20 @@ if ticker_input_1:
 
                     if not df_2.empty:
                         chart_data[ticker_input_2] = df_2['Close']
-                        if normalize:
-                            chart_data = (chart_data / chart_data.iloc[0] - 1) * 100
 
-                    st.line_chart(chart_data)
+                    if show_msci and not df_msci.empty:
+                        chart_data["MSCI World Index (Weltmarkt)"] = df_msci['Close']
+
+                    # Automatischer Usability-Kniff: Wenn MSCI World gewählt wird, MÜSSEN wir prozentual vergleichen,
+                    # da Index-Punkte und Aktien-Preise sonst den Chart skalierungstechnisch zerstören.
+                    if normalize or show_msci:
+                        chart_data = (chart_data / chart_data.iloc[0] - 1) * 100
+                        st.line_chart(chart_data)
+                        st.caption(
+                            "⚠️ Da ein Benchmark- oder Aktienvergleich aktiv ist, zeigt das Diagramm automatisch die **prozentuale Entwicklung (%)** seit dem Startdatum an.")
+                    else:
+                        st.line_chart(chart_data)
+                        st.caption("Angezeigt werden die absoluten Schlusskurse in Originalwährung.")
 
                     if show_drawdown:
                         def calc_max_drawdown(df):
@@ -171,7 +239,9 @@ if ticker_input_1:
 
                         st.info(f"📉 **Maximaler Verlust im gewählten Zeitraum:**\n"
                                 f"* **{ticker_input_1}:** {calc_max_drawdown(df_1):.2f}%\n" +
-                                (f"* **{ticker_input_2}:** {calc_max_drawdown(df_2):.2f}%" if not df_2.empty else ""))
+                                (f"* **{ticker_input_2}:** {calc_max_drawdown(df_2):.2f}%" if not df_2.empty else "") +
+                                (
+                                    f"\n* **MSCI World Index:** {calc_max_drawdown(df_msci):.2f}%" if show_msci and not df_msci.empty else ""))
 
                 # --- TAB 3: FUNDAMENTAL-ANALYSE ---
                 with tab3:
@@ -183,7 +253,6 @@ if ticker_input_1:
 
                     def zeige_fundamentals(info, col, ticker):
                         col.markdown(f"### **{ticker}**")
-
                         kgv = info.get('trailingPE')
                         kgv_txt = f"{kgv:.2f}" if kgv else "Nicht verfügbar"
                         col.metric(label="KGV (Kurs-Gewinn-Verhältnis)", value=kgv_txt,
@@ -198,46 +267,88 @@ if ticker_input_1:
                         cap_txt = f"{cap / 1e9:.2f} Mrd. {info.get('currency', 'USD')}" if cap else "Unbekannt"
                         col.write(f"**Gesamtwert des Unternehmens (Market Cap):** {cap_txt}")
 
-                        debt = info.get('debtToEquity')
-                        debt_txt = f"{debt:.2f}%" if debt else "Keine Daten"
-                        col.write(
-                            f"**Verschuldungsgrad (Debt-to-Equity):** {debt_txt} *(Über 100% bedeutet mehr Schulden als Eigenkapital)*")
-
 
                     zeige_fundamentals(info_1, f_cols[0], ticker_input_1)
                     if not df_2.empty:
                         zeige_fundamentals(info_2, f_cols[1], ticker_input_2)
 
-                # --- TAB 4: RENDITE-RECHNER ---
+                # --- TAB 4: RENDITE-RECHNER & MIXER (Inkl. Feature 2) ---
                 with tab4:
-                    st.subheader("💰 Was-wäre-wenn? Szenario-Simulation")
+                    st.subheader("💰 Interaktiver Rendite-Rechner & Portfolio-Mixer")
                     st.write(
-                        "Finde heraus, was aus deinem Geld geworden wäre, hättest du am Anfang des gewählten Zeitraums investiert.")
+                        "Simuliere historische Szenarien und lerne, wie das Mischen von Aktien dein Risiko verändert.")
 
-                    invest_sum = st.slider("Investitionsbetrag wählen (€):", min_value=100, max_value=10000, value=1000,
-                                           step=100)
-                    calc_cols = st.columns(2 if not df_2.empty else 1)
+                    invest_sum = st.slider("Gesamt-Investitionsbetrag wählen (€):", min_value=100, max_value=10000,
+                                           value=1000, step=100)
 
+                    # FEATURE 2: Portfolio-Mixer (Wird nur freigeschaltet, wenn zwei Ticker aktiv sind)
+                    if not df_2.empty:
+                        st.markdown("#### ⚖️ Portfolio-Mischung einstellen")
+                        weight_1 = st.slider(f"Gewichtung von {ticker_input_1} im Depot (%)", 0, 100, 50, 5)
+                        weight_2 = 100 - weight_1
+                        st.caption(
+                            f"Daraus ergibt sich automatisch eine Gewichtung von **{weight_2}%** für **{ticker_input_2}**.")
 
-                    def berechne_rendite(df, ticker, col):
-                        start_price = df['Close'].iloc[0]
-                        end_price = df['Close'].iloc[-1]
+                        # Berechnungen für Aktie 1
+                        start_1, end_1 = df_1['Close'].iloc[0], df_1['Close'].iloc[-1]
+                        invest_1 = invest_sum * (weight_1 / 100)
+                        end_val_1 = invest_1 * (end_1 / start_1)
+
+                        # Berechnungen für Aktie 2
+                        start_2, end_2 = df_2['Close'].iloc[0], df_2['Close'].iloc[-1]
+                        invest_2 = invest_sum * (weight_2 / 100)
+                        end_val_2 = invest_2 * (end_2 / start_2)
+
+                        # Zusammenführung
+                        total_end_val = end_val_1 + end_val_2
+                        total_profit = total_end_val - invest_sum
+                        total_perf_percent = (total_end_val / invest_sum - 1) * 100
+
+                        # Kombiniertes Risiko (Gewichtetes Beta)
+                        beta_1 = info_1.get('beta', 1.0)
+                        beta_2 = info_2.get('beta', 1.0)
+                        combined_beta = (weight_1 / 100) * beta_1 + (weight_2 / 100) * beta_2
+
+                        st.markdown("---")
+                        st.markdown("### 📊 Ergebnis deiner Portfolio-Mischung")
+                        mix_cols = st.columns(2)
+
+                        mix_cols[0].metric(label="Endwert des kombinierten Depots", value=f"{total_end_val:.2f} €",
+                                           delta=f"{total_profit:.2f} € ({total_perf_percent:.2f}%)")
+
+                        # HCI-Erklärungseffekt für Casual User: Risiko-Reduzierung sichtbar machen
+                        if combined_beta > 1.3:
+                            status_mix = "🔥 Hoch schwankend"
+                        elif combined_beta < 0.8:
+                            status_mix = "🛡️ Sehr wertstabil"
+                        else:
+                            status_mix = "⚖️ Moderates Marktrisiko"
+
+                        mix_cols[1].metric(label="Neues Gesamt-Risiko (Kombiniertes Beta)",
+                                           value=f"{combined_beta:.2f}", delta=status_mix, delta_color="off")
+                        mix_cols[1].caption(
+                            "💡 **UX-Tipp für Einsteiger:** Siehst du, wie das Risiko sinkt, wenn du eine stürmische Aktie mit einer ruhigen Aktie mischt? Das nennt man Diversifikation!")
+
+                    else:
+                        # Standard-Rechner für nur eine Aktie
+                        st.info(
+                            "💡 **Tipp:** Gib oben in der Sidebar einen zweiten Ticker ein, um den interaktiven **Portfolio-Mixer** freizuschalten!")
+                        calc_cols = st.columns(1)
+
+                        start_price = df_1['Close'].iloc[0]
+                        end_price = df_1['Close'].iloc[-1]
                         performance = (end_price / start_price)
                         end_wert = invest_sum * performance
                         gewinn = end_wert - invest_sum
                         prozent_total = (performance - 1) * 100
 
-                        col.markdown(f"#### Ergebnis für **{ticker}**")
-                        col.metric(label="Aktueller Wert des Investments", value=f"{end_wert:.2f} €",
-                                   delta=f"{gewinn:.2f} € ({prozent_total:.2f}%)")
-                        col.caption(f"Gekauft zum Kurs von {start_price:.2f} am {df.index[0].strftime('%d.%m.%Y')}")
+                        calc_cols[0].markdown(f"#### Ergebnis für **{ticker_input_1}**")
+                        calc_cols[0].metric(label="Aktueller Wert des Investments", value=f"{end_wert:.2f} €",
+                                            delta=f"{gewinn:.2f} € ({prozent_total:.2f}%)")
+                        calc_cols[0].caption(
+                            f"Gekauft zum Kurs von {start_price:.2f} am {df_1.index[0].strftime('%d.%m.%Y')}")
 
-
-                    berechne_rendite(df_1, ticker_input_1, calc_cols[0])
-                    if not df_2.empty:
-                        berechne_rendite(df_2, ticker_input_2, calc_cols[1])
-
-                # --- TAB 5: NEWS & SCHLAGZEILEN (HIER SIND DIE PARSING-FIXES) ---
+                # --- TAB 5: NEWS & SCHLAGZEILEN ---
                 with tab5:
                     st.subheader("📰 Warum bewegt sich der Kurs? Aktuelle News")
                     st.write(
@@ -255,14 +366,12 @@ if ticker_input_1:
                                 return
 
                             for art in articles[:5]:
-                                # Prüfen auf die neue, verschachtelte 2025/2026er JSON-Struktur von yfinance
                                 content_block = art.get('content', {})
                                 if content_block:
                                     title = content_block.get('title', 'Kein Titel verfügbar')
                                     link = content_block.get('canonicalUrl', {}).get('url', '#')
                                     publisher = content_block.get('provider', {}).get('displayName', 'Unbekannt')
                                 else:
-                                    # Fallback-Sicherheit für alte Datenstrukturen
                                     title = art.get('title', 'Kein Titel verfügbar')
                                     link = art.get('link', '#')
                                     publisher = art.get('publisher', 'Unbekannt')
