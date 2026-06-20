@@ -2,7 +2,7 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import numpy as np
-import plotly.graph_objects as go  # Für das Netzdiagramm
+import plotly.graph_objects as go  # Für Netzdiagramm und Candlestick-Labor
 
 # Konfiguration der Seite
 st.set_page_config(page_title="Premium Aktien- & Volatilitäts-Dashboard", layout="wide")
@@ -100,7 +100,7 @@ if ticker_input_1:
                 # Report-String vorbereiten
                 report_text = f"=== ANLAGE-REPORT ===\nZeitraum: {time_period}\n\n"
 
-                # --- TAB 1: ANLAGE-KOMPASS (BUGFIX HIER!) ---
+                # --- TAB 1: ANLAGE-KOMPASS ---
                 with tab1:
                     st.subheader("💡 Entscheidungshilfe & Aktien-Stärkenprofil")
                     kompass_cols = st.columns(2 if not df_2.empty else 1)
@@ -113,7 +113,6 @@ if ticker_input_1:
                         sma_30 = df['Close'].rolling(window=30).mean().iloc[-1] if len(df) >= 30 else current_price
                         rec_key = info.get('recommendationKey', 'none').lower()
 
-                        # Signalbestimmung
                         if "buy" in rec_key or current_price > (sma_30 * 1.03):
                             signal = "🟢 Kauf-Signal / Nachkaufen"
                             details = "Starker Aufwärtstrend oder klare Kaufempfehlung der Analysten."
@@ -129,8 +128,6 @@ if ticker_input_1:
 
                         report_text += f"Aktie: {ticker}\nSignal: {signal}\n"
 
-                        # NÄHRWERTE DES NETZDIAGRAMMS (Skala 1-5)
-                        # 1. Bewertung (KGV)
                         kgv = info.get('trailingPE')
                         if not kgv:
                             kgv_score = 3
@@ -143,7 +140,6 @@ if ticker_input_1:
                         else:
                             kgv_score = 1
 
-                        # 2. Dividende
                         div = info.get('dividendYield', 0)
                         if not div or div == 0:
                             div_score = 1
@@ -154,7 +150,6 @@ if ticker_input_1:
                         else:
                             div_score = 5
 
-                        # 3. Stabilität (Beta)
                         beta = info.get('beta', 1.0)
                         if beta < 0.75:
                             beta_score = 5
@@ -167,7 +162,6 @@ if ticker_input_1:
                         else:
                             beta_score = 1
 
-                        # 4. Analysten-Potenzial
                         target = info.get('targetMeanPrice', current_price)
                         potential = ((target / current_price) - 1) * 100
                         if potential > 20:
@@ -181,7 +175,6 @@ if ticker_input_1:
                         else:
                             pot_score = 2
 
-                        # 5. Trend-Stärke (SMA)
                         if current_price > (sma_30 * 1.06):
                             trend_score = 5
                         elif current_price > sma_30:
@@ -195,11 +188,9 @@ if ticker_input_1:
                                       'Analysten-Potenzial', 'Trend-Stärke (SMA)']
                         values = [kgv_score, div_score, beta_score, pot_score, trend_score]
 
-                        # Kreis schließen
                         categories += [categories[0]]
                         values += [values[0]]
 
-                        # RADAR CHART GENERIEREN
                         fig = go.Figure()
                         fig.add_trace(go.Scatterpolar(
                             r=values,
@@ -210,7 +201,6 @@ if ticker_input_1:
                             name=ticker
                         ))
 
-                        # HIER SIND DIE FIXES: tickfont statt font verwendet!
                         fig.update_layout(
                             polar=dict(
                                 radialaxis=dict(
@@ -220,9 +210,7 @@ if ticker_input_1:
                                     ticktext=['Gering', 'Moderat', 'Ausgezeichnet'],
                                     tickfont=dict(size=10)
                                 ),
-                                angularaxis=dict(
-                                    tickfont=dict(size=11)
-                                )
+                                angularaxis=dict(tickfont=dict(size=11))
                             ),
                             showlegend=False,
                             height=320,
@@ -230,7 +218,6 @@ if ticker_input_1:
                         )
 
                         col.plotly_chart(fig, use_container_width=True)
-
                         col.markdown(f"**🔍 Profil-Zusammenfassung:**")
                         col.write(
                             f"* **Risiko-Check:** Die Aktie schwankt im Vergleich zum Markt mit einem Beta von `{beta:.2f}`.")
@@ -255,54 +242,111 @@ if ticker_input_1:
                         mime="text/plain"
                     )
 
-                # --- TAB 2: KURSVERLAUF & VOLATILITÄTS-LABOR ---
+                # --- TAB 2: KURSVERLAUF & VOLATILITÄTS-LABOR (UMSCHALTER IMPLEMENTIERT) ---
                 with tab2:
                     st.subheader("📈 Interaktive Chart-Analyse")
-                    st.markdown("**🔬 Volatilitäts-Labor (Zusatzwerkzeuge):**")
 
-                    lab_cols = st.columns(4)
-                    show_sma = lab_cols[0].checkbox("30-Tage-Durchschnitt (SMA)",
-                                                    value=True) if not normalize else False
-                    show_bollinger = lab_cols[1].checkbox("Bollinger Bänder", value=False) if not normalize else False
-                    show_drawdown = lab_cols[2].checkbox("Max. Einbruch anzeigen", value=False)
-                    show_msci = lab_cols[3].checkbox("Mit Weltmarkt vergleichen (MSCI World)", value=False)
-
-                    chart_data = pd.DataFrame()
-                    chart_data[ticker_input_1] = df_1['Close']
-
-                    if show_sma:
-                        chart_data[f"{ticker_input_1} (30-Tage SMA)"] = df_1['Close'].rolling(window=30).mean()
-
-                    if show_bollinger and len(df_1) >= 20:
-                        sma20 = df_1['Close'].rolling(window=20).mean()
-                        std20 = df_1['Close'].rolling(window=20).std()
-                        chart_data["Bollinger Oben"] = sma20 + (std20 * 2)
-                        chart_data["Bollinger Unten"] = sma20 - (std20 * 2)
-
-                    if not df_2.empty:
-                        chart_data[ticker_input_2] = df_2['Close']
-
-                    if show_msci and not df_msci.empty:
-                        chart_data["MSCI World Index (Weltmarkt)"] = df_msci['Close']
-
-                    if normalize or show_msci:
-                        chart_data = (chart_data / chart_data.iloc[0] - 1) * 100
-                        st.line_chart(chart_data)
+                    # DEINE IDEE: Der Usability-Umschalter
+                    # Wir erlauben Candlesticks nur, wenn keine 2. Aktie geladen ist (HCI-UI Restriktion)
+                    if df_2.empty:
+                        chart_view = st.radio("Darstellungsform wählen:",
+                                              ["Einfacher Linien-Chart (Einsteiger)",
+                                               "Candlestick-Labor mit Mustererkennung (Fortgeschritten)"],
+                                              horizontal=True)
                     else:
-                        st.line_chart(chart_data)
+                        chart_view = "Einfacher Linien-Chart (Einsteiger)"
+                        st.caption(
+                            "ℹ️ *Hinweis: Bei aktiven Aktienvergleichen ist das Candlestick-Labor deaktiviert, um visuelle Überlagerungen zu verhindern.*")
 
-                    if show_drawdown:
-                        def calc_max_drawdown(df):
-                            roll_max = df['Close'].cummax()
-                            drawdown = (df['Close'] - roll_max) / roll_max
-                            return drawdown.min() * 100
+                    if chart_view == "Einfacher Linien-Chart (Einsteiger)":
+                        st.markdown("**🔬 Volatilitäts-Labor (Zusatzwerkzeuge):**")
+                        lab_cols = st.columns(4)
+                        show_sma = lab_cols[0].checkbox("30-Tage-Durchschnitt (SMA)",
+                                                        value=True) if not normalize else False
+                        show_bollinger = lab_cols[1].checkbox("Bollinger Bänder",
+                                                              value=False) if not normalize else False
+                        show_drawdown = lab_cols[2].checkbox("Max. Einbruch anzeigen", value=False)
+                        show_msci = lab_cols[3].checkbox("Mit Weltmarkt vergleichen (MSCI World)", value=False)
+
+                        chart_data = pd.DataFrame()
+                        chart_data[ticker_input_1] = df_1['Close']
+
+                        if show_sma:
+                            chart_data[f"{ticker_input_1} (30-Tage SMA)"] = df_1['Close'].rolling(window=30).mean()
+
+                        if show_bollinger and len(df_1) >= 20:
+                            sma20 = df_1['Close'].rolling(window=20).mean()
+                            std20 = df_1['Close'].rolling(window=20).std()
+                            chart_data["Bollinger Oben"] = sma20 + (std20 * 2)
+                            chart_data["Bollinger Unten"] = sma20 - (std20 * 2)
+
+                        if not df_2.empty:
+                            chart_data[ticker_input_2] = df_2['Close']
+
+                        if show_msci and not df_msci.empty:
+                            chart_data["MSCI World Index (Weltmarkt)"] = df_msci['Close']
+
+                        if normalize or show_msci:
+                            chart_data = (chart_data / chart_data.iloc[0] - 1) * 100
+                            st.line_chart(chart_data)
+                        else:
+                            st.line_chart(chart_data)
+
+                        if show_drawdown:
+                            def calc_max_drawdown(df):
+                                roll_max = df['Close'].cummax()
+                                drawdown = (df['Close'] - roll_max) / roll_max
+                                return drawdown.min() * 100
 
 
-                        st.info(f"📉 **Maximaler Verlust im gewählten Zeitraum:**\n"
-                                f"* **{ticker_input_1}:** {calc_max_drawdown(df_1):.2f}%\n" +
-                                (f"* **{ticker_input_2}:** {calc_max_drawdown(df_2):.2f}%" if not df_2.empty else "") +
-                                (
-                                    f"\n* **MSCI World Index:** {calc_max_drawdown(df_msci):.2f}%" if show_msci and not df_msci.empty else ""))
+                            st.info(f"📉 **Maximaler Verlust im gewählten Zeitraum:** {calc_max_drawdown(df_1):.2f}%")
+
+                    else:
+                        # CANDLESTICK LABOR CODE
+                        st.markdown("**⚡ Mathematische Form-Erkennung (Formen werden im Chart eingezeichnet):**")
+
+                        # Muster-Algorithmen berechnen
+                        df_1['Body'] = abs(df_1['Open'] - df_1['Close'])
+                        df_1['Range'] = df_1['High'] - df_1['Low']
+
+                        # Doji Erkennung (Körper macht weniger als 10% der Tagesschwankung aus)
+                        df_1['Doji'] = (df_1['Body'] <= df_1['Range'] * 0.1) & (df_1['Range'] > 0)
+
+                        # Hammer Erkennung (Langer unterer Schatten, kleiner Körper oben)
+                        df_1['Lower_Shadow'] = np.minimum(df_1['Open'], df_1['Close']) - df_1['Low']
+                        df_1['Upper_Shadow'] = df_1['High'] - np.maximum(df_1['Open'], df_1['Close'])
+                        df_1['Hammer'] = (df_1['Lower_Shadow'] >= df_1['Body'] * 2) & (
+                                    df_1['Upper_Shadow'] <= df_1['Body'] * 0.5) & (df_1['Body'] > 0)
+
+                        # Kerzenchart bauen
+                        fig_candle = go.Figure()
+                        fig_candle.add_trace(go.Candlestick(
+                            x=df_1.index, open=df_1['Open'], high=df_1['High'], low=df_1['Low'], close=df_1['Close'],
+                            name=ticker_input_1,
+                            increasing_line_color='#2ecc71', decreasing_line_color='#e74c3c'
+                        ))
+
+                        # Doji-Punkte einzeichnen
+                        doji_days = df_1[df_1['Doji']]
+                        if not doji_days.empty:
+                            fig_candle.add_trace(go.Scatter(
+                                x=doji_days.index, y=doji_days['High'] * 1.02, mode='markers',
+                                marker=dict(symbol='star', size=9, color='gold'), name='Doji (⚡ Unentschlossenheit)'
+                            ))
+
+                        # Hammer-Punkte einzeichnen
+                        hammer_days = df_1[df_1['Hammer']]
+                        if not hammer_days.empty:
+                            fig_candle.add_trace(go.Scatter(
+                                x=hammer_days.index, y=hammer_days['Low'] * 0.98, mode='markers',
+                                marker=dict(symbol='triangle-up', size=9, color='cyan'), name='Hammer (🔨 Trendwende)'
+                            ))
+
+                        fig_candle.update_layout(height=450, margin=dict(l=10, r=10, t=10, b=10),
+                                                 xaxis_rangeslider_visible=False)
+                        st.plotly_chart(fig_candle, use_container_width=True)
+                        st.caption(
+                            "💡 **Lesehilfe:** Ein gelber Stern (⚡) signalisiert ein Doji (Unentschlossenheit im Markt). Ein blaues Dreieck (🔨) markiert einen Hammer (mögliche Kehrtwende nach oben).")
 
                 # --- TAB 3: FUNDAMENTAL-ANALYSE ---
                 with tab3:
