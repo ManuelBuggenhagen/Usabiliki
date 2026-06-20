@@ -100,7 +100,7 @@ if ticker_input_1:
                 # Report-String vorbereiten
                 report_text = f"=== ANLAGE-REPORT ===\nZeitraum: {time_period}\n\n"
 
-                # --- TAB 1: ANLAGE-KOMPASS (JETZT MIT RADAR/SPIDER CHART!) ---
+                # --- TAB 1: ANLAGE-KOMPASS (BUGFIX HIER!) ---
                 with tab1:
                     st.subheader("💡 Entscheidungshilfe & Aktien-Stärkenprofil")
                     kompass_cols = st.columns(2 if not df_2.empty else 1)
@@ -129,8 +129,8 @@ if ticker_input_1:
 
                         report_text += f"Aktie: {ticker}\nSignal: {signal}\n"
 
-                        # DYNAMISCHE LOGIK FÜR DIE 5 NÄHRWERTE DES NETZDIAGRAMMS (Skala 1-5)
-                        # 1. Bewertung (Günstiges KGV = Hoher Score)
+                        # NÄHRWERTE DES NETZDIAGRAMMS (Skala 1-5)
+                        # 1. Bewertung (KGV)
                         kgv = info.get('trailingPE')
                         if not kgv:
                             kgv_score = 3
@@ -143,7 +143,7 @@ if ticker_input_1:
                         else:
                             kgv_score = 1
 
-                        # 2. Dividende (Hohe Dividende = Hoher Score)
+                        # 2. Dividende
                         div = info.get('dividendYield', 0)
                         if not div or div == 0:
                             div_score = 1
@@ -154,7 +154,7 @@ if ticker_input_1:
                         else:
                             div_score = 5
 
-                        # 3. Stabilität (Niedriges Beta = Hohe Stabilität/Score)
+                        # 3. Stabilität (Beta)
                         beta = info.get('beta', 1.0)
                         if beta < 0.75:
                             beta_score = 5
@@ -181,7 +181,7 @@ if ticker_input_1:
                         else:
                             pot_score = 2
 
-                        # 5. Trend-Stärke (Abstand zum 30-Tage SMA)
+                        # 5. Trend-Stärke (SMA)
                         if current_price > (sma_30 * 1.06):
                             trend_score = 5
                         elif current_price > sma_30:
@@ -191,12 +191,11 @@ if ticker_input_1:
                         else:
                             trend_score = 1
 
-                        # Daten für das Radar Chart strukturieren
                         categories = ['Günstige Bewertung', 'Dividenden-Rendite', 'Kurs-Stabilität (Beta)',
                                       'Analysten-Potenzial', 'Trend-Stärke (SMA)']
                         values = [kgv_score, div_score, beta_score, pot_score, trend_score]
 
-                        # Plotly verlangt, dass der Kreis geschlossen wird (erster Wert wird wiederholt)
+                        # Kreis schließen
                         categories += [categories[0]]
                         values += [values[0]]
 
@@ -211,6 +210,7 @@ if ticker_input_1:
                             name=ticker
                         ))
 
+                        # HIER SIND DIE FIXES: tickfont statt font verwendet!
                         fig.update_layout(
                             polar=dict(
                                 radialaxis=dict(
@@ -218,19 +218,19 @@ if ticker_input_1:
                                     range=[0, 5],
                                     tickvals=[1, 3, 5],
                                     ticktext=['Gering', 'Moderat', 'Ausgezeichnet'],
-                                    font=dict(size=10)
+                                    tickfont=dict(size=10)
                                 ),
-                                angularaxis=dict(font=dict(size=11, weight="bold"))
+                                angularaxis=dict(
+                                    tickfont=dict(size=11)
+                                )
                             ),
                             showlegend=False,
                             height=320,
                             margin=dict(l=50, r=50, t=30, b=30)
                         )
 
-                        # Chart rendern
                         col.plotly_chart(fig, use_container_width=True)
 
-                        # Textliche Erklärung direkt darunter (Usability!)
                         col.markdown(f"**🔍 Profil-Zusammenfassung:**")
                         col.write(
                             f"* **Risiko-Check:** Die Aktie schwankt im Vergleich zum Markt mit einem Beta von `{beta:.2f}`.")
@@ -239,15 +239,13 @@ if ticker_input_1:
                                 f"* **Experten-Kursziel:** Analysten sehen ein mittleres Ziel bei `{target:.2f}` ({potential:.2f}% Luft nach oben).")
 
 
-                    # Farb-Themes für die optische Unterscheidung der zwei Aktien
-                    theme_1 = {'fill': 'rgba(52, 152, 219, 0.3)', 'line': '#2980b9'}  # Blau
-                    theme_2 = {'fill': 'rgba(155, 89, 182, 0.3)', 'line': '#8e44ad'}  # Lila
+                    theme_1 = {'fill': 'rgba(52, 152, 219, 0.3)', 'line': '#2980b9'}
+                    theme_2 = {'fill': 'rgba(155, 89, 182, 0.3)', 'line': '#8e44ad'}
 
                     rendere_kompass(ticker_input_1, df_1, info_1, kompass_cols[0], theme_1)
                     if not df_2.empty:
                         rendere_kompass(ticker_input_2, df_2, info_2, kompass_cols[1], theme_2)
 
-                    # Spickzettel-Export
                     st.markdown("---")
                     st.markdown("#### 📄 Report mitnehmen")
                     st.download_button(
