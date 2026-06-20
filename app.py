@@ -132,14 +132,12 @@ if ticker_input_1:
                     if not df_2.empty:
                         rendere_kompass(ticker_input_2, df_2, info_2, kompass_cols[1])
 
-                # --- TAB 2: KURSVERLAUF & VOLATILITÄTS-LABOR (HIER WAR DER FEHLER) ---
+                # --- TAB 2: KURSVERLAUF & VOLATILITÄTS-LABOR ---
                 with tab2:
                     st.subheader("📈 Interaktive Chart-Analyse")
-
                     st.markdown("**🔬 Volatilitäts-Labor (Zusatzwerkzeuge für Hauptaktie):**")
-                    lab_cols = st.columns(3)
 
-                    # Hier greifen wir jetzt korrekt mit [0], [1], [2] auf die Spalten-Liste zu
+                    lab_cols = st.columns(3)
                     show_sma = lab_cols[0].checkbox("30-Tage-Durchschnitt (SMA)",
                                                     value=True) if not normalize else False
                     show_bollinger = lab_cols[1].checkbox("Bollinger Bänder", value=False) if not normalize else False
@@ -218,11 +216,10 @@ if ticker_input_1:
 
                     invest_sum = st.slider("Investitionsbetrag wählen (€):", min_value=100, max_value=10000, value=1000,
                                            step=100)
-
                     calc_cols = st.columns(2 if not df_2.empty else 1)
 
 
-                    def rectangles_rendite(df, ticker, col):
+                    def berechne_rendite(df, ticker, col):
                         start_price = df['Close'].iloc[0]
                         end_price = df['Close'].iloc[-1]
                         performance = (end_price / start_price)
@@ -236,11 +233,11 @@ if ticker_input_1:
                         col.caption(f"Gekauft zum Kurs von {start_price:.2f} am {df.index[0].strftime('%d.%m.%Y')}")
 
 
-                    rectangles_rendite(df_1, ticker_input_1, calc_cols[0])
+                    berechne_rendite(df_1, ticker_input_1, calc_cols[0])
                     if not df_2.empty:
-                        rectangles_rendite(df_2, ticker_input_2, calc_cols[1])
+                        berechne_rendite(df_2, ticker_input_2, calc_cols[1])
 
-                # --- TAB 5: NEWS & SCHLAGZEILEN ---
+                # --- TAB 5: NEWS & SCHLAGZEILEN (BUGFIXES HIER) ---
                 with tab5:
                     st.subheader("📰 Warum bewegt sich der Kurs? Aktuelle News")
                     st.write(
@@ -252,20 +249,29 @@ if ticker_input_1:
                     def zeige_news(data, col, ticker):
                         col.markdown(f"### News zu **{ticker}**")
                         try:
-                            articles = data.news[:5]
+                            # Sicheres Auslesen über getattr(), falls das Attribut fehlt
+                            articles = getattr(data, 'news', [])
                             if not articles:
-                                col.info("Keine aktuellen Nachrichten für dieses Symbol gefunden.")
-                            for art in articles:
-                                col.markdown(f"🔗 **[{art['title']}]({art['link']})**")
-                                col.caption(f"Quelle: {art.get('publisher', 'Unbekannt')}")
+                                col.info("Momentan keine aktuellen Nachrichten über Yahoo Finance verfügbar.")
+                                return
+
+                            for art in articles[:5]:
+                                title = art.get('title', 'Kein Titel verfügbar')
+                                link = art.get('link', '#')
+                                publisher = art.get('publisher', 'Unbekannt')
+
+                                col.markdown(f"🔗 **[{title}]({link})**")
+                                col.caption(f"Quelle: {publisher}")
                                 col.markdown("")
-                        except:
-                            col.error("News-Feed konnte nicht geladen werden.")
+                        except Exception as e:
+                            col.info(
+                                "News konnten für diesen Ticker nicht geladen werden (Yahoo-Schnittstelle blockiert).")
 
 
                     zeige_news(data_1, news_cols[0], ticker_input_1)
                     if not df_2.empty:
-                        zeige_news(data_2, news_cols[1], news_cols[1])
+                        # HIER WAR DER FEHLER: ticker_input_2 statt news_cols[1] übergeben!
+                        zeige_news(data_2, news_cols[1], ticker_input_2)
 
                 # --- TAB 6: ROHDATEN ---
                 with tab6:
