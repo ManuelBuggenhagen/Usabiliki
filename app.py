@@ -237,7 +237,7 @@ if ticker_input_1:
                     if not df_2.empty:
                         berechne_rendite(df_2, ticker_input_2, calc_cols[1])
 
-                # --- TAB 5: NEWS & SCHLAGZEILEN (BUGFIXES HIER) ---
+                # --- TAB 5: NEWS & SCHLAGZEILEN (HIER SIND DIE PARSING-FIXES) ---
                 with tab5:
                     st.subheader("📰 Warum bewegt sich der Kurs? Aktuelle News")
                     st.write(
@@ -246,31 +246,36 @@ if ticker_input_1:
                     news_cols = st.columns(2 if not df_2.empty else 1)
 
 
-                    def zeige_news(data, col, ticker):
-                        col.markdown(f"### News zu **{ticker}**")
+                    def zeige_news(data, col, ticker_name):
+                        col.markdown(f"### News zu **{ticker_name}**")
                         try:
-                            # Sicheres Auslesen über getattr(), falls das Attribut fehlt
                             articles = getattr(data, 'news', [])
                             if not articles:
                                 col.info("Momentan keine aktuellen Nachrichten über Yahoo Finance verfügbar.")
                                 return
 
                             for art in articles[:5]:
-                                title = art.get('title', 'Kein Titel verfügbar')
-                                link = art.get('link', '#')
-                                publisher = art.get('publisher', 'Unbekannt')
+                                # Prüfen auf die neue, verschachtelte 2025/2026er JSON-Struktur von yfinance
+                                content_block = art.get('content', {})
+                                if content_block:
+                                    title = content_block.get('title', 'Kein Titel verfügbar')
+                                    link = content_block.get('canonicalUrl', {}).get('url', '#')
+                                    publisher = content_block.get('provider', {}).get('displayName', 'Unbekannt')
+                                else:
+                                    # Fallback-Sicherheit für alte Datenstrukturen
+                                    title = art.get('title', 'Kein Titel verfügbar')
+                                    link = art.get('link', '#')
+                                    publisher = art.get('publisher', 'Unbekannt')
 
                                 col.markdown(f"🔗 **[{title}]({link})**")
                                 col.caption(f"Quelle: {publisher}")
-                                col.markdown("")
+                                col.markdown("---")
                         except Exception as e:
-                            col.info(
-                                "News konnten für diesen Ticker nicht geladen werden (Yahoo-Schnittstelle blockiert).")
+                            col.info("News konnten für diesen Ticker temporär nicht geladen werden.")
 
 
                     zeige_news(data_1, news_cols[0], ticker_input_1)
                     if not df_2.empty:
-                        # HIER WAR DER FEHLER: ticker_input_2 statt news_cols[1] übergeben!
                         zeige_news(data_2, news_cols[1], ticker_input_2)
 
                 # --- TAB 6: ROHDATEN ---
