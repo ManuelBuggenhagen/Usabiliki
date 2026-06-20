@@ -79,7 +79,7 @@ if ticker_input_1:
 
                 st.markdown("---")
 
-                # --- 2. ERWEITERTE TABS (Progressive Disclosure) ---
+                # --- 2. ERWEITERTE TABS ---
                 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
                     "🔮 Anlage-Kompass",
                     "📈 Kursverlauf & Labor",
@@ -132,17 +132,18 @@ if ticker_input_1:
                     if not df_2.empty:
                         rendere_kompass(ticker_input_2, df_2, info_2, kompass_cols[1])
 
-                # --- TAB 2: KURSVERLAUF & VOLATILITÄTS-LABOR ---
+                # --- TAB 2: KURSVERLAUF & VOLATILITÄTS-LABOR (HIER WAR DER FEHLER) ---
                 with tab2:
                     st.subheader("📈 Interaktive Chart-Analyse")
 
-                    # Labor-Steuerung (Nur sinnvoll im absoluten Modus oder für Hauptaktie)
                     st.markdown("**🔬 Volatilitäts-Labor (Zusatzwerkzeuge für Hauptaktie):**")
                     lab_cols = st.columns(3)
-                    show_sma = lab_cols.checkbox("30-Tage-Durchschnitt (SMA)", value=True) if not normalize else False
-                    show_bollinger = lab_cols.checkbox("Bollinger Bänder (Volatilitäts-Kanäle)",
-                                                       value=False) if not normalize else False
-                    show_drawdown = lab_cols.checkbox("Maximalen historischen Einbruch anzeigen", value=False)
+
+                    # Hier greifen wir jetzt korrekt mit [0], [1], [2] auf die Spalten-Liste zu
+                    show_sma = lab_cols[0].checkbox("30-Tage-Durchschnitt (SMA)",
+                                                    value=True) if not normalize else False
+                    show_bollinger = lab_cols[1].checkbox("Bollinger Bänder", value=False) if not normalize else False
+                    show_drawdown = lab_cols[2].checkbox("Max. Einbruch anzeigen", value=False)
 
                     chart_data = pd.DataFrame()
                     chart_data[ticker_input_1] = df_1['Close']
@@ -153,8 +154,8 @@ if ticker_input_1:
                     if show_bollinger and len(df_1) >= 20:
                         sma20 = df_1['Close'].rolling(window=20).mean()
                         std20 = df_1['Close'].rolling(window=20).std()
-                        chart_data["Bollinger Oben (Max Schwankung)"] = sma20 + (std20 * 2)
-                        chart_data["Bollinger Unten (Min Schwankung)"] = sma20 - (std20 * 2)
+                        chart_data["Bollinger Oben"] = sma20 + (std20 * 2)
+                        chart_data["Bollinger Unten"] = sma20 - (std20 * 2)
 
                     if not df_2.empty:
                         chart_data[ticker_input_2] = df_2['Close']
@@ -164,7 +165,6 @@ if ticker_input_1:
                     st.line_chart(chart_data)
 
                     if show_drawdown:
-                        # Max Drawdown Berechnung
                         def calc_max_drawdown(df):
                             roll_max = df['Close'].cummax()
                             drawdown = (df['Close'] - roll_max) / roll_max
@@ -222,7 +222,7 @@ if ticker_input_1:
                     calc_cols = st.columns(2 if not df_2.empty else 1)
 
 
-                    def berechne_rendite(df, ticker, col):
+                    def rectangles_rendite(df, ticker, col):
                         start_price = df['Close'].iloc[0]
                         end_price = df['Close'].iloc[-1]
                         performance = (end_price / start_price)
@@ -236,9 +236,9 @@ if ticker_input_1:
                         col.caption(f"Gekauft zum Kurs von {start_price:.2f} am {df.index[0].strftime('%d.%m.%Y')}")
 
 
-                    berechne_rendite(df_1, ticker_input_1, calc_cols[0])
+                    rectangles_rendite(df_1, ticker_input_1, calc_cols[0])
                     if not df_2.empty:
-                        berechne_rendite(df_2, ticker_input_2, calc_cols[1])
+                        rectangles_rendite(df_2, ticker_input_2, calc_cols[1])
 
                 # --- TAB 5: NEWS & SCHLAGZEILEN ---
                 with tab5:
@@ -265,7 +265,7 @@ if ticker_input_1:
 
                     zeige_news(data_1, news_cols[0], ticker_input_1)
                     if not df_2.empty:
-                        zeige_news(data_2, news_cols[1], ticker_input_2)
+                        zeige_news(data_2, news_cols[1], news_cols[1])
 
                 # --- TAB 6: ROHDATEN ---
                 with tab6:
