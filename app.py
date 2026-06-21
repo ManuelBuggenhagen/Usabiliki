@@ -306,8 +306,8 @@ else:
                     with col.expander("📝 Details zum Stärkenprofil einsehen"):
                         st.write(f"**Schwankungsrisiko (Beta):** `{beta:.2f}`")
                         if info.get('targetMeanPrice'):
-                            st.write(
-                                f"**Kursziel der Experten:** `{target:.2f}` {info.get('currency', 'USD')} (Potenzial: `{potential:.2f}%`).")
+                            st.write(f"**Kursziel der Experten:** `{target:.2f}` {info.get('currency', 'USD')}")
+                            st.write(f"**Analysten-Potenzial:** `{potential:.2f}%`")
 
 
                 theme_blue = {'fill': 'rgba(59, 130, 246, 0.25)', 'line': '#3b82f6'}
