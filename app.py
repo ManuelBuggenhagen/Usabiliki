@@ -45,7 +45,7 @@ st.markdown("""
 st.title("📊 Nutzerzentriertes Aktien- & Volatilitäts-Dashboard")
 st.caption("Konzipiert für Gelegenheitsanleger zur intuitiven Analyse von Marktschwankungen.")
 
-# --- SIDEBAR (KLARNAME STATT TICKER-REFACTOR NACH NIELSEN) ---
+# --- SIDEBAR ---
 st.sidebar.header("⚙️ Aktien-Auswahl")
 st.sidebar.markdown("Wähle Unternehmen anhand ihres echten Namens aus. Kürzel wurden vollständig entfernt.")
 
@@ -129,7 +129,7 @@ if ticker_input_1:
                     info_2 = {}
                 name_2 = info_2.get('longName', selected_company_2)
 
-            # --- 1. PROMINENTE KPIs MIT KLARNAMEN ---
+            # --- 1. PROMINENTE KPIs ---
             st.markdown(f"### 🔍 Aktueller Marktstatus (Schlusskurse)")
             kpi_cols = st.columns(2 if not df_2.empty else 1)
 
@@ -167,7 +167,7 @@ if ticker_input_1:
 
             report_text = f"=== ANLAGE-REPORT ===\nZeitraum: {time_period}\n\n"
 
-            # --- TAB 1: ANLAGE-KOMPASS (KLARNAMEN IN CHART & TEXT) ---
+            # --- TAB 1: ANLAGE-KOMPASS ---
             with tab1:
                 st.subheader("💡 Intuitive Entscheidungshilfe für Gelegenheitsanleger")
                 st.markdown(
@@ -242,8 +242,8 @@ if ticker_input_1:
                 theme_blue = {'fill': 'rgba(59, 130, 246, 0.25)', 'line': '#3b82f6'}
                 theme_purple = {'fill': 'rgba(147, 51, 234, 0.25)', 'line': '#9333ea'}
 
-                rendere_kompass_refactored(name_1, df_1, info_1,
-                                           tab1.columns if hasattr(tab1, 'columns') else kompass_cols[0], theme_blue)
+                # BUGFIX HIER: tab1.columns-Käse entfernt und sauber durch kompass_cols[0] ersetzt!
+                rendere_kompass_refactored(name_1, df_1, info_1, kompass_cols[0], theme_blue)
                 if not df_2.empty:
                     rendere_kompass_refactored(name_2, df_2, info_2, kompass_cols[1], theme_purple)
 
@@ -255,7 +255,7 @@ if ticker_input_1:
                     mime="text/plain"
                 )
 
-            # --- TAB 2: KURSVERLAUF & LABOR (KLARNAMEN IN CHART-LEGENDEN) ---
+            # --- TAB 2: KURSVERLAUF & LABOR ---
             with tab2:
                 st.subheader("📈 Interaktiver Kursverlauf")
 
@@ -402,7 +402,7 @@ if ticker_input_1:
             with tab4:
                 st.subheader("💰 Vermögens-Simulator & Portfolio-Mischer")
                 st.markdown(
-                    "Bewege die Regler, um spielerisch zu lernen, wie Diversifikation (Risikostreuung) die Stabilität deines Ersparten erhöht.")
+                    "Bewege die Regler, um spielerisch zu lernen, wie Diversifikation (Risikostreuung) die Stabilität deines Er Ersparten erhöht.")
 
                 invest_sum = st.slider("Investitionsbetrag wählen (€):", min_value=100, max_value=10000, value=1000,
                                        step=100)
