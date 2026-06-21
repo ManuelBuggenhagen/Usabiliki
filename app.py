@@ -67,6 +67,9 @@ STOCK_OPTIONS = {
     "✨ Eigener Ticker / Freie Eingabe...": "CUSTOM"
 }
 
+st.sidebar.markdown("---")
+st.sidebar.subheader("🎯 Primäraktie")
+
 # 1. Hauptaktie Suche (index=None erzwingt den leeren Startzustand)
 selected_option_1 = st.sidebar.selectbox(
     "1. Top Aktien auf einen Blick:",
@@ -89,6 +92,8 @@ if custom_ticker_input_1:
 elif selected_option_1:
     ticker_input_1 = STOCK_OPTIONS[selected_option_1]
 
+st.sidebar.markdown("---")
+
 # Checkbox für Vergleich aktivieren
 compare_stock = st.sidebar.checkbox("⚖️ Aktie vergleichen", value=False, help="Aktiviere diese Option, um ein zweites Unternehmen für den direkten Vergleich hinzuzufügen.")
 
@@ -97,6 +102,10 @@ selected_option_2 = None
 custom_ticker_input_2 = ""
 
 if compare_stock:
+    # Abstand vergrößern und Überschrift anzeigen
+    st.sidebar.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+    st.sidebar.subheader("⚖️ Vergleichsaktie")
+
     # 2. Vergleichsaktie Suche
     selected_option_2 = st.sidebar.selectbox(
         "2. Top Aktien auf einen Blick (Vergleich):",
