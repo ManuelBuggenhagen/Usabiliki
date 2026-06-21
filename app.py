@@ -296,7 +296,7 @@ else:
                             radialaxis=dict(visible=True, range=[0, 5], tickvals=[1, 3, 5],
                                             ticktext=['Niedrig', 'Mittel', 'Hoch'],
                                             tickfont=dict(size=9, color="#64748b")),
-                            angularaxis=dict(tickfont=dict(size=10, color="#1e293b"))
+                            angularaxis=dict(tickfont=dict(size=10, color="#ffffff"))
                         ),
                         showlegend=False, height=280, margin=dict(l=40, r=40, t=20, b=20)
                     )
