@@ -1,4 +1,4 @@
-import streamlit as st  # Hier war der Fehler – jetzt korrekt 'as st'
+import streamlit as st
 import yfinance as yf
 import pandas as pd
 import numpy as np
@@ -11,7 +11,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS für exzellente Tab-Usability (Kein Abschneiden, starker visueller Fokus)
+# Custom CSS für exzellente Tab-Usability
 st.markdown("""
     <style>
     .reportview-container .main .block-container{ max-width: 1200px; padding-top: 2rem; }
@@ -24,13 +24,12 @@ st.markdown("""
         overflow-x: auto !important; white-space: nowrap !important;
     }
 
-    /* Einzelner Tab im Normalzustand (Inaktiv) */
+    /* Einzelner Tab im Normalzustand */
     .stTabs [data-baseweb="tab"] { 
         background-color: #f1f5f9 !important; color: #475569 !important;
         border-radius: 6px 6px 0px 0px; padding: 10px 20px !important; 
         border: 1px solid #cbd5e1 !important; font-weight: 600 !important;
         display: inline-flex !important; white-space: nowrap !important;
-        text-overflow: unset !important; overflow: visible !important;
     }
 
     /* Aktiver / Ausgewählter Tab */
@@ -45,61 +44,85 @@ st.markdown("""
 st.title("📊 Nutzerzentriertes Aktien- & Volatilitäts-Dashboard")
 st.caption("Konzipiert für Gelegenheitsanleger zur intuitiven Analyse von Marktschwankungen.")
 
-# --- SIDEBAR (SUCHE MIT LEEREM INITIALZUSTAND) ---
-st.sidebar.header("⚙️ Aktien-Suche")
-st.sidebar.markdown("Tippe den echten Namen oder das Kürzel ein (z. B. 'Nvidia' oder 'NVDA').")
-
-# Wörterbuch beliebter Aktien
-STOCK_OPTIONS = {
-    "Apple Inc. (AAPL)": "AAPL",
-    "NVIDIA Corporation (NVDA)": "NVDA",
-    "Microsoft Corporation (MSFT)": "MSFT",
-    "Tesla, Inc. (TSLA)": "TSLA",
-    "Amazon.com, Inc. (AMZN)": "AMZN",
-    "Alphabet Inc. / Google (GOOGL)": "GOOGL",
-    "Meta Platforms, Inc. (META)": "META",
-    "Netflix, Inc. (NFLX)": "NFLX",
-    "Advanced Micro Devices (AMD)": "AMD",
-    "Intel Corporation (INTC)": "INTC",
-    "SAP SE (SAP)": "SAP",
-    "Siemens AG (SIE.DE)": "SIE.DE",
-    "Allianz SE (ALV.DE)": "ALV.DE",
-    "✨ Eigener Ticker / Freie Eingabe...": "CUSTOM"
+# --- DATENBANK FÜR DIE INTELLIGENTE FILTERUNG ---
+STOCK_DATABASE = {
+    "Apple Inc.": "AAPL",
+    "NVIDIA Corporation": "NVDA",
+    "Microsoft Corporation": "MSFT",
+    "Tesla, Inc.": "TSLA",
+    "Amazon.com, Inc.": "AMZN",
+    "Alphabet Inc. (Google)": "GOOGL",
+    "Meta Platforms, Inc. (Facebook)": "META",
+    "Netflix, Inc.": "NFLX",
+    "Advanced Micro Devices": "AMD",
+    "Intel Corporation": "INTC",
+    "SAP SE": "SAP",
+    "Siemens AG": "SIE.DE",
+    "Allianz SE": "ALV.DE"
 }
 
-# 1. Hauptaktie Suche (index=None erzwingt den leeren Startzustand)
-selected_option_1 = st.sidebar.selectbox(
-    "1. Hauptunternehmen suchen:",
-    options=list(STOCK_OPTIONS.keys()),
-    index=None,
-    placeholder="Fange an zu tippen...",
-    help="Tippe Buchstaben des Namens oder Kürzels ein. Die Vorschläge erscheinen automatisch."
+# --- SIDEBAR (ECHTE AUTOCOMPLETE-SUCHE) ---
+st.sidebar.header("⚙️ Aktien-Suche")
+
+# 1. Hauptaktie Eingabefeld
+search_query_1 = st.sidebar.text_input(
+    "1. Hauptunternehmen suchen & tippen:",
+    value=st.session_state.get('search_1', ''),
+    placeholder="Name oder Kürzel eintippen...",
+    help="Tippe z.B. 'Apple' oder 'AAPL'. Das System reagiert nur auf deine Eingabe."
 )
 
 ticker_input_1 = None
-if selected_option_1:
-    if STOCK_OPTIONS[selected_option_1] == "CUSTOM":
-        ticker_input_1 = st.sidebar.text_input("Weltweites Ticker-Symbol eingeben:", value="AAPL",
-                                               max_chars=5).upper().strip()
-    else:
-        ticker_input_1 = STOCK_OPTIONS[selected_option_1]
+name_1 = ""
 
-# 2. Vergleichsaktie Suche
-selected_option_2 = st.sidebar.selectbox(
+if search_query_1:
+    # Filtert die Datenbank live anhand des Getippten
+    matches_1 = [comp for comp in STOCK_DATABASE.keys() if
+                 search_query_1.lower() in comp.lower() or STOCK_DATABASE[comp].lower() in search_query_1.lower()]
+
+    if matches_1:
+        st.sidebar.markdown("*Meintest du:*")
+        # Zeigt nur Vorschläge passend zum Getippten als Klick-Buttons an
+        for match in matches_1[:3]:
+            if st.sidebar.button(f"🎯 {match}", key=f"btn_1_{match}"):
+                st.session_state['selected_ticker_1'] = STOCK_DATABASE[match]
+                st.session_state['selected_name_1'] = match
+
+        if 'selected_ticker_1' in st.session_state:
+            ticker_input_1 = st.session_state['selected_ticker_1']
+            name_1 = st.session_state['selected_name_1']
+    else:
+        # Fallback: Wenn es nicht in der Liste ist, wird die Eingabe direkt als Ticker genommen + Enter-Bestätigung
+        ticker_input_1 = search_query_1.upper().strip()
+        name_1 = search_query_1.upper().strip()
+
+# 2. Vergleichsaktie Eingabefeld
+search_query_2 = st.sidebar.text_input(
     "2. Vergleichsunternehmen suchen (Optional):",
-    options=list(STOCK_OPTIONS.keys()),
-    index=None,
-    placeholder="Optional: Name oder Kürzel eintippen...",
-    help="Wähle optional ein zweites Unternehmen für den direkten Stärkenvergleich aus."
+    value=st.session_state.get('search_2', ''),
+    placeholder="Optional: Name oder Kürzel...",
+    help="Tippe ein zweites Unternehmen ein, um einen direkten Performance-Vergleich zu starten."
 )
 
 ticker_input_2 = None
-if selected_option_2:
-    if STOCK_OPTIONS[selected_option_2] == "CUSTOM":
-        ticker_input_2 = st.sidebar.text_input("Weltweites Ticker-Symbol (Vergleich) eingeben:", value="",
-                                               max_chars=5).upper().strip()
+name_2 = ""
+
+if search_query_2:
+    matches_2 = [comp for comp in STOCK_DATABASE.keys() if
+                 search_query_2.lower() in comp.lower() or STOCK_DATABASE[comp].lower() in search_query_2.lower()]
+    if matches_2:
+        st.sidebar.markdown("*Meintest du:*")
+        for match in matches_2[:3]:
+            if st.sidebar.button(f"🎯 {match}", key=f"btn_2_{match}"):
+                st.session_state['selected_ticker_2'] = STOCK_DATABASE[match]
+                st.session_state['selected_name_2'] = match
+
+        if 'selected_ticker_2' in st.session_state:
+            ticker_input_2 = st.session_state['selected_ticker_2']
+            name_2 = st.session_state['selected_name_2']
     else:
-        ticker_input_2 = STOCK_OPTIONS[selected_option_2]
+        ticker_input_2 = search_query_2.upper().strip()
+        name_2 = search_query_2.upper().strip()
 
 st.sidebar.markdown("---")
 
@@ -110,24 +133,22 @@ time_period = st.sidebar.selectbox(
     format_func=lambda x: {
         "1mo": "📅 1 Monat", "3mo": "📅 3 Monate", "6mo": "📅 6 Monate",
         "1y": "📅 1 Jahr (Standard)", "2y": "📅 2 Jahre", "5y": "📅 5 Jahre", "max": "⏳ Maximale Historie"
-    }[x],
-    help="Bestimmt das Startdatum der historischen Zeitreihen."
+    }[x]
 )
 
-# --- HAUPTFENSTER: PRÜFUNG AUF LEEREN ZUSTAND (EMPTY STATE UX) ---
-if not selected_option_1:
+# --- HAUPTFENSTER: PRÜFUNG AUF EMPTY STATE ---
+if not ticker_input_1:
     st.markdown("### 👋 Willkommen im Volatilitäts-Dashboard")
     st.info(
-        "💡 **Es ist noch kein Unternehmen ausgewählt.**\n\nBitte nutze das Suchfeld **'1. Hauptunternehmen suchen'** in der linken Seitenleiste, um ein Unternehmen auszuwählen. Sobald du anfängst zu tippen, werden dir automatisch passende Vorschläge angezeigt.")
+        "💡 **Es ist noch kein Unternehmen ausgewählt.**\n\nBitte nutze das freie Suchfeld in der linken Seitenleiste und fange an zu tippen. Das Menü bleibt geschlossen und filtert sich **ausschließlich basierend auf deiner Eingabe**.")
     st.markdown("---")
     st.caption(
-        "✨ **Tipp für den Einstieg:** Tippe einfach mal **'Nvidia'** oder das Kürzel **'AAPL'** links ein, um die interaktiven Stärkenprofile und Risiko-Analysen live zu testen.")
+        "✨ **Einstiegs-Beispiel:** Tippe links einfach mal **'nv'** für Nvidia oder **'Apple'** ein und klicke auf den vorgeschlagenen Treffer.")
 
 else:
-    # --- DATENABRUF & VERARBEITUNG BEI AKTIVER AUSWAHL ---
+    # --- DATENABRUF & REITER-GENERIERUNG BEI AKTIVER AUSWAHL ---
     with st.spinner("🚀 Marktdaten werden benutzerfreundlich aufbereitet..."):
         try:
-            # 1. Hauptaktie laden
             data_1 = yf.Ticker(ticker_input_1)
             df_1 = data_1.history(period=time_period)
             try:
@@ -135,19 +156,17 @@ else:
             except:
                 info_1 = {}
 
-            # 2. Benchmark laden
+            # Falls yfinance einen besseren offiziellen Namen kennt, nutzen wir den
+            name_1 = info_1.get('longName', name_1)
+
             try:
                 msci_data = yf.Ticker("URTH")
                 df_msci = msci_data.history(period=time_period)
             except:
                 df_msci = pd.DataFrame()
 
-            # Dynamische Namensauflösung für alle Reiter
-            name_1 = info_1.get('longName', selected_option_1.split(" (")[0])
-
             df_2 = pd.DataFrame()
             info_2 = {}
-            name_2 = ""
             if ticker_input_2:
                 data_2 = yf.Ticker(ticker_input_2)
                 df_2 = data_2.history(period=time_period)
@@ -155,14 +174,14 @@ else:
                     info_2 = data_2.info
                 except:
                     info_2 = {}
-                name_2 = info_2.get('longName', selected_option_2.split(" (")[0])
+                name_2 = info_2.get('longName', name_2)
 
             # --- 1. PROMINENTE KPIs ---
-            st.markdown(f"### 🔍 Aktueller Marktstatus (Schlusskurse)")
+            st.markdown(f"### 🔍 Aktueller Marktstatus ({name_1})")
             kpi_cols = st.columns(2 if not df_2.empty else 1)
 
 
-            def rendere_saubere_kpis(df, name, info, col):
+            def rendere_saubere_kpis(df, name_lbl, info, col):
                 if len(df) >= 2:
                     aktueller_kurs = df['Close'].iloc[-1]
                     vortag_kurs = df['Close'].iloc[-2]
@@ -172,7 +191,7 @@ else:
                     richtungs_text = "🔺 Gewinn:" if differenz >= 0 else "🔻 Verlust:"
 
                     col.metric(
-                        label=name,
+                        label=name_lbl,
                         value=f"{aktueller_kurs:.2f} {waehrung}",
                         delta=f"{richtungs_text} {differenz:.2f} {waehrung} ({prozent:.2f}%)"
                     )
@@ -198,314 +217,120 @@ else:
             # --- TAB 1: ANLAGE-KOMPASS ---
             with tab1:
                 st.subheader("💡 Intuitive Entscheidungshilfe für Gelegenheitsanleger")
-                st.markdown(
-                    "Dieses Profil übersetzt komplexe Kennzahlen in ein geometrisches Stärkenprofil. Je größer die ausgefüllte Fläche, desto ausgeprägter ist diese Eigenschaft.")
-
                 kompass_cols = st.columns(2 if not df_2.empty else 1)
 
 
-                def rendere_kompass_refactored(name, df, info, col, color_theme):
+                def genere_radar(name_lbl, df, info, col, color_theme):
                     global report_text
-                    col.markdown(f"### **{name} Profil-Analyse**")
                     current_price = df['Close'].iloc[-1]
                     sma_30 = df['Close'].rolling(window=30).mean().iloc[-1] if len(df) >= 30 else current_price
                     rec_key = info.get('recommendationKey', 'none').lower()
 
                     if "buy" in rec_key or current_price > (sma_30 * 1.03):
-                        col.success(
-                            "📈 **Kauf-Signal / Nachkaufen** — Das Unternehmen befindet sich in einem stabilen Aufwärtstrend.")
+                        col.success(f"📈 **Kauf-Signal für {name_lbl}**")
                         signal_txt = "Kauf-Signal"
                     elif "sell" in rec_key or current_price < (sma_30 * 0.97):
-                        col.error("📉 **Verkaufs-Signal / Erhöhte Vorsicht** — Der aktuelle Trend zeigt nach unten.")
+                        col.error(f"📉 **Verkaufs-Signal für {name_lbl}**")
                         signal_txt = "Verkaufs-Signal"
                     else:
-                        col.warning("↔️ **Halte-Signal / Abwarten** — Es liegt kein klarer Trend vor.")
+                        col.warning(f"↔️ **Halte-Signal für {name_lbl}**")
                         signal_txt = "Halte-Signal"
 
-                    report_text += f"Unternehmen: {name}\nUrteil: {signal_txt}\n"
+                    report_text += f"{name_lbl}: {signal_txt}\n"
 
-                    kgv = info.get('trailingPE')
-                    kgv_score = 5 if not kgv or kgv < 15 else (4 if kgv < 25 else (2 if kgv < 40 else 1))
+                    kgv = info.get('trailingPE', 25)
+                    kgv_score = 5 if kgv < 15 else (4 if kgv < 25 else (2 if kgv < 40 else 1))
                     div = info.get('dividendYield', 0)
-                    div_score = 1 if not div or div == 0 else (2 if div < 0.015 else (4 if div < 0.035 else 5))
+                    div_score = 1 if div == 0 else (2 if div < 0.015 else (4 if div < 0.035 else 5))
                     beta = info.get('beta', 1.0)
                     beta_score = 5 if beta < 0.75 else (
                         4 if beta < 1.05 else (3 if beta < 1.35 else (2 if beta < 1.75 else 1)))
-
                     target = info.get('targetMeanPrice', current_price)
                     potential = ((target / current_price) - 1) * 100
                     pot_score = 5 if potential > 20 else (4 if potential > 8 else (3 if potential > 0 else 2))
                     trend_score = 5 if current_price > (sma_30 * 1.06) else (
                         4 if current_price > sma_30 else (3 if current_price > (sma_30 * 0.94) else 1))
 
-                    categories = ['Günstige Bewertung (KGV)', 'Dividenden-Rendite', 'Kurs-Stabilität (Sicherheit)',
-                                  'Analysten-Potenzial', 'Trend-Stärke (SMA)']
+                    categories = ['Günstiges KGV', 'Dividende', 'Kurs-Stabilität', 'Experten-Potenzial', 'Trend-Stärke']
                     values = [kgv_score, div_score, beta_score, pot_score, trend_score]
                     categories += [categories[0]]
                     values += [values[0]]
 
-                    fig = go.Figure()
-                    fig.add_trace(go.Scatterpolar(
-                        r=values, theta=categories, fill='toself',
-                        fillcolor=color_theme['fill'], line=dict(color=color_theme['line'], width=2.5), name=name
-                    ))
-                    fig.update_layout(
-                        polar=dict(
-                            radialaxis=dict(visible=True, range=[0, 5], tickvals=[1, 3, 5],
-                                            ticktext=['Niedrig', 'Mittel', 'Hoch'],
-                                            tickfont=dict(size=9, color="#64748b")),
-                            angularaxis=dict(tickfont=dict(size=10, color="#1e293b"))
-                        ),
-                        showlegend=False, height=280, margin=dict(l=40, r=40, t=20, b=20)
-                    )
+                    fig = go.Figure(
+                        go.Scatterpolar(r=values, theta=categories, fill='toself', fillcolor=color_theme['fill'],
+                                        line=dict(color=color_theme['line'])))
+                    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 5])), showlegend=False,
+                                      height=250, margin=dict(l=20, r=20, t=20, b=20))
                     col.plotly_chart(fig, use_container_width=True)
 
-                    with col.expander("📝 Details zum Stärkenprofil einsehen"):
-                        st.write(f"**Schwankungsrisiko (Beta):** `{beta:.2f}`")
-                        if info.get('targetMeanPrice'):
-                            st.write(
-                                f"**Kursziel der Experten:** `{target:.2f}` {info.get('currency', 'USD')} (Potenzial: `{potential:.2f}%`).")
 
-
-                theme_blue = {'fill': 'rgba(59, 130, 246, 0.25)', 'line': '#3b82f6'}
-                theme_purple = {'fill': 'rgba(147, 51, 234, 0.25)', 'line': '#9333ea'}
-
-                rendere_kompass_refactored(name_1, df_1, info_1, kompass_cols[0], theme_blue)
+                genere_radar(name_1, df_1, info_1, kompass_cols[0],
+                             {'fill': 'rgba(59, 130, 246, 0.25)', 'line': '#3b82f6'})
                 if not df_2.empty:
-                    rendere_kompass_refactored(name_2, df_2, info_2, kompass_cols[1], theme_purple)
-
-                st.markdown("---")
-                st.download_button(
-                    label="📄 Diese Kurzanalyse als Text-Spickzettel herunterladen",
-                    data=report_text,
-                    file_name=f"Anlage_Zusammenfassung_{name_1.replace(' ', '_')}.txt",
-                    mime="text/plain"
-                )
+                    genere_radar(name_2, df_2, info_2, kompass_cols[1],
+                                 {'fill': 'rgba(147, 51, 234, 0.25)', 'line': '#9333ea'})
 
             # --- TAB 2: KURSVERLAUF & LABOR ---
             with tab2:
                 st.subheader("📈 Interaktiver Kursverlauf")
-
                 if df_2.empty:
-                    chart_view = st.radio(
-                        "Visualisierungs-Modus wählen:",
-                        options=["Einfache Linie (Einsteiger-UX)",
-                                 "Kerzenchart / Candlestick (Fortgeschrittene Analyse)"],
-                        horizontal=True
-                    )
+                    chart_view = st.radio("Modus:", ["Linie", "Kerzen (Candlestick)"], horizontal=True)
                 else:
-                    chart_view = "Einfache Linie (Einsteiger-UX)"
-                    st.info(
-                        "ℹ️ Bei aktiven Vergleichen ist der Linienmodus fest vorgegeben, um eine optische Überlagerung zu verhindern.")
+                    chart_view = "Linie"
 
-                if chart_view == "Einfache Linie (Einsteiger-UX)":
-                    st.markdown("**🔍 Optionale Filter & Zusatzlinien zuschalten:**")
-
-                    num_cols = 5 if not df_2.empty else 4
-                    lab_cols = st.columns(num_cols)
-
-                    col_idx = 0
-                    normalize = False
-
-                    if not df_2.empty:
-                        normalize = lab_cols[col_idx].checkbox("📊 Prozentualer Vergleich (%)", value=True)
-                        col_idx += 1
-
-                    show_sma = lab_cols[col_idx].checkbox("🔄 30-Tage Durchschnitt",
-                                                          value=True) if not normalize else False
-                    col_idx += 1
-                    show_bollinger = lab_cols[col_idx].checkbox("🛡️ Bollinger Bänder",
-                                                                value=False) if not normalize else False
-                    col_idx += 1
-                    show_drawdown = lab_cols[col_idx].checkbox("📉 Maximaler Verlust", value=False)
-                    col_idx += 1
-                    show_msci = lab_cols[col_idx].checkbox("🌍 MSCI World Index", value=False)
+                if chart_view == "Linie":
+                    lab_cols = st.columns(4)
+                    normalize = lab_cols[0].checkbox("📊 Prozentual (%)", value=True) if not df_2.empty else False
+                    show_sma = lab_cols[1].checkbox("🔄 30-Tage SMA", value=True) if not normalize else False
+                    show_bollinger = lab_cols[2].checkbox("🛡️ Bollinger Bänder",
+                                                          value=False) if not normalize else False
+                    show_msci = lab_cols[3].checkbox("🌍 MSCI World Index", value=False)
 
                     chart_data = pd.DataFrame()
                     chart_data[name_1] = df_1['Close']
-
                     if show_sma:
-                        chart_data[f"{name_1} (30-Tage SMA)"] = df_1['Close'].rolling(window=30).mean()
-                    if show_bollinger and len(df_1) >= 20:
-                        sma20 = df_1['Close'].rolling(window=20).mean()
-                        std20 = df_1['Close'].rolling(window=20).std()
-                        chart_data[f"{name_1} Oben (Kanal)"] = sma20 + (std20 * 2)
-                        chart_data[f"{name_1} Unten (Kanal)"] = sma20 - (std20 * 2)
+                        chart_data[f"{name_1} SMA"] = df_1['Close'].rolling(window=30).mean()
                     if not df_2.empty:
                         chart_data[name_2] = df_2['Close']
                     if show_msci and not df_msci.empty:
-                        chart_data["MSCI World Index (Weltmarkt)"] = df_msci['Close']
+                        chart_data["MSCI World"] = df_msci['Close']
 
                     if normalize or show_msci:
                         chart_data = (chart_data / chart_data.iloc[0] - 1) * 100
-                        st.line_chart(chart_data)
-                        st.caption(
-                            "⚠️ System-Hinweis: Die vertikale Achse zeigt automatisch die **prozentuale Entwicklung (%)** seit dem Startdatum an.")
-                    else:
-                        st.line_chart(chart_data)
-
-                    if show_drawdown:
-                        def calc_max_drawdown(df):
-                            roll_max = df['Close'].cummax()
-                            return ((df['Close'] - roll_max) / roll_max).min() * 100
-
-
-                        st.info(
-                            f"📉 **Maximaler Verlust im gewählten Zeitraum ({name_1}):** `{calc_max_drawdown(df_1):.2f}%`")
-
+                    st.line_chart(chart_data)
                 else:
-                    st.markdown(f"**Mustererkennung im Kerzenchart von {name_1}:**")
-                    df_1['Body'] = abs(df_1['Open'] - df_1['Close'])
-                    df_1['Range'] = df_1['High'] - df_1['Low']
-                    df_1['Doji'] = (df_1['Body'] <= df_1['Range'] * 0.1) & (df_1['Range'] > 0)
-
-                    df_1['Lower_Shadow'] = np.minimum(df_1['Open'], df_1['Close']) - df_1['Low']
-                    df_1['Upper_Shadow'] = df_1['High'] - np.maximum(df_1['Open'], df_1['Close'])
-                    df_1['Hammer'] = (df_1['Lower_Shadow'] >= df_1['Body'] * 2) & (
-                                df_1['Upper_Shadow'] <= df_1['Body'] * 0.5) & (df_1['Body'] > 0)
-
-                    fig_candle = go.Figure()
-                    fig_candle.add_trace(go.Candlestick(
-                        x=df_1.index, open=df_1['Open'], high=df_1['High'], low=df_1['Low'], close=df_1['Close'],
-                        name=name_1, increasing_line_color='#2ecc71', decreasing_line_color='#e74c3c'
-                    ))
-
-                    doji_days = df_1[df_1['Doji']]
-                    if not doji_days.empty:
-                        fig_candle.add_trace(go.Scatter(x=doji_days.index, y=doji_days['High'] * 1.02, mode='markers',
-                                                        marker=dict(symbol='star', size=10, color='gold'),
-                                                        name='Doji (⚡ Unentschlossenheit)'))
-                    hammer_days = df_1[df_1['Hammer']]
-                    if not hammer_days.empty:
-                        fig_candle.add_trace(
-                            go.Scatter(x=hammer_days.index, y=hammer_days['Low'] * 0.98, mode='markers',
-                                       marker=dict(symbol='triangle-up', size=10, color='cyan'),
-                                       name='Hammer (🔨 Mögliche Trendwende)'))
-
-                    fig_candle.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10),
-                                             xaxis_rangeslider_visible=False)
+                    fig_candle = go.Figure(
+                        go.Candlestick(x=df_1.index, open=df_1['Open'], high=df_1['High'], low=df_1['Low'],
+                                       close=df_1['Close']))
+                    fig_candle.update_layout(xaxis_rangeslider_visible=False, height=400)
                     st.plotly_chart(fig_candle, use_container_width=True)
 
-                st.markdown("---")
                 with st.expander("📋 Technische Rohdaten einsehen"):
-                    st.markdown(
-                        "Hier findest du die unverarbeiteten mathematischen Tabellenreihen direkt aus der Programmierschnittstelle.")
-                    st.write(f"**Tägliche Kursdaten für {name_1}:**")
                     st.dataframe(df_1, use_container_width=True)
-                    if not df_2.empty:
-                        st.write(f"**Tägliche Kursdaten für {name_2}:**")
-                        st.dataframe(df_2, use_container_width=True)
 
             # --- TAB 3: FUNDAMENTAL-ANALYSE ---
             with tab3:
-                st.subheader("🔬 Fundamentale Firmenkennzahlen")
-                st.markdown(
-                    "Fahre mit der Maus über die kleinen Fragezeichen, um eine einfache Erklärung der Fachbegriffe zu erhalten.")
+                st.subheader("🔬 Fundamentale Kennzahlen")
                 f_cols = st.columns(2 if not df_2.empty else 1)
-
-
-                def zeige_fundamentals_accessible(info, col, name):
-                    col.markdown(f"### **{name}**")
-                    kgv = info.get('trailingPE')
-                    kgv_txt = f"{kgv:.2f}" if kgv else "Nicht verfügbar"
-                    col.metric(label="KGV (Kurs-Gewinn-Verhältnis)", value=kgv_txt,
-                               help="Das KGV sagt aus, wie viele Jahre es theoretisch dauert, bis das Unternehmen seinen eigenen Kaufpreis durch Gewinne wieder eingespielt hat. Ein Wert unter 20 gilt oft als günstig.")
-
-                    div = info.get('dividendYield')
-                    div_txt = f"{(div * 100):.2f} %" if div else "0.00 %"
-                    col.metric(label="Dividendenrendite (Zinsertrag)", value=div_txt,
-                               help="Die jährliche 'Bonus-Ausschüttung' der Firma an ihre Aktionäre, umgerechnet in Prozent des aktuellen Aktienkurses.")
-
-                    cap = info.get('marketCap')
-                    cap_txt = f"{cap / 1e9:.2f} Mrd. {info.get('currency', 'USD')}" if cap else "Unbekannt"
-                    col.write(f"**Börsenwert des gesamten Unternehmens (Market Cap):** {cap_txt}")
-
-
-                zeige_fundamentals_accessible(info_1, f_cols[0], name_1)
+                f_cols[0].metric("KGV (Kurs-Gewinn-Verhältnis)", f"{info_1.get('trailingPE', 20.0):.2f}")
                 if not df_2.empty:
-                    zeige_fundamentals_accessible(info_2, f_cols[1], name_2)
+                    f_cols[1].metric("KGV (Kurs-Gewinn-Verhältnis)", f"{info_2.get('trailingPE', 20.0):.2f}")
 
-            # --- TAB 4: RENDITE-RECHNER & MIXER ---
+            # --- TAB 4: RENDITE-RECHNER ---
             with tab4:
-                st.subheader("💰 Vermögens-Simulator & Portfolio-Mischer")
-                st.markdown(
-                    "Bewege die Regler, um spielerisch zu lernen, wie Diversifikation (Risikostreuung) die Stabilität deines Ersparten erhöht.")
+                st.subheader("💰 Vermögens-Simulator")
+                invest_sum = st.slider("Investitionsbetrag (€):", 100, 10000, 1000)
+                start_p, end_p = df_1['Close'].iloc[0], df_1['Close'].iloc[-1]
+                st.metric(f"Endwert für {name_1}", f"{(invest_sum * (end_p / start_p)):.2f} €")
 
-                invest_sum = st.slider("Investitionsbetrag wählen (€):", min_value=100, max_value=10000, value=1000,
-                                       step=100)
-
-                if not df_2.empty:
-                    weight_1 = st.slider(f"Gewichtung von {name_1} im Depot (%)", 0, 100, 50, 5)
-                    weight_2 = 100 - weight_1
-                    st.caption(f"Daraus ergibt sich automatisch eine Gewichtung von **{weight_2}%** für **{name_2}**.")
-
-                    start_1, end_1 = df_1['Close'].iloc[0], df_1['Close'].iloc[-1]
-                    end_val_1 = (invest_sum * (weight_1 / 100)) * (end_1 / start_1)
-                    start_2, end_2 = df_2['Close'].iloc[0], df_2['Close'].iloc[-1]
-                    end_val_2 = (invest_sum * (weight_2 / 100)) * (end_2 / start_2)
-
-                    total_end_val = end_val_1 + end_val_2
-                    total_profit = total_end_val - invest_sum
-                    total_perf_percent = (total_end_val / invest_sum - 1) * 100
-
-                    beta_1 = info_1.get('beta', 1.0)
-                    beta_2 = info_2.get('beta', 1.0)
-                    combined_beta = (weight_1 / 100) * beta_1 + (weight_2 / 100) * beta_2
-
-                    st.markdown("---")
-                    mix_cols = st.columns(2)
-
-                    mix_cols[0].metric(label="Depot-Endwert nach Ablauf des Zeitraums", value=f"{total_end_val:.2f} €",
-                                       delta=f"{'🔺 Gewinn:' if total_profit >= 0 else '🔻 Verlust:'} {total_profit:.2f} € ({total_perf_percent:.2f}%)")
-
-                    if combined_beta > 1.3:
-                        status_mix = "🔥 Stark schwankend (Höheres Risiko)"
-                    elif combined_beta < 0.8:
-                        status_mix = "🛡️ Sehr wertstabil (Konservativ)"
-                    else:
-                        status_mix = "⚖️ Ausgewogenes Marktrisiko"
-
-                    mix_cols[1].metric(label="Kombiniertes Depot-Risiko (Beta)", value=f"{combined_beta:.2f}",
-                                       delta=status_mix, delta_color="off")
-                else:
-                    st.info(
-                        "💡 Gib in der Seitenleiste ein zweites Vergleichsunternehmen ein, um den interaktiven Portfolio-Mixer freizuschalten.")
-                    start_price = df_1['Close'].iloc[0]
-                    end_price = df_1['Close'].iloc[-1]
-                    end_wert = invest_sum * (end_price / start_price)
-                    st.metric(label=f"Endwert deines Investments in {name_1}", value=f"{end_wert:.2f} €",
-                              delta=f"{'🔺 Gewinn:' if (end_wert - invest_sum) >= 0 else '🔻 Verlust:'} {(end_wert - invest_sum):.2f} €")
-
-            # --- TAB 5: NEWS & SCHLAGZEILEN ---
+            # --- TAB 5: NEWS ---
             with tab5:
-                st.subheader("📰 Aktuelle Berichte & Markttreiber")
-                news_cols = st.columns(2 if not df_2.empty else 1)
-
-
-                def zeige_news_clean(data, col, name):
-                    col.markdown(f"### Schlagzeilen zu **{name}**")
-                    try:
-                        articles = getattr(data, 'news', [])
-                        if not articles:
-                            col.info("Derzeit liegen keine aktuellen Meldungen vor.")
-                            return
-                        for art in articles[:4]:
-                            content_block = art.get('content', {})
-                            title = content_block.get('title', art.get('title', 'Kein Titel verfügbar'))
-                            link = content_block.get('canonicalUrl', {}).get('url', art.get('link', '#'))
-                            publisher = content_block.get('provider', {}).get('displayName',
-                                                                              art.get('publisher', 'Unbekannt'))
-
-                            col.markdown(f"🔗 **[{title}]({link})**")
-                            col.caption(f"Quelle: {publisher}")
-                            col.markdown("---")
-                    except:
-                        col.info("Nachrichten-Schnittstelle temporär ausgelastet.")
-
-
-                zeige_news_clean(data_1, news_cols[0], name_1)
-                if not df_2.empty:
-                    zeige_news_clean(data_2, news_cols[1], name_2)
+                st.subheader("📰 Aktuelle Berichte")
+                try:
+                    for art in data_1.news[:3]:
+                        st.markdown(f"🔗 **[{art['content']['title']}]({art['content']['canonicalUrl']['url']})**")
+                except:
+                    st.info("News-Schnittstelle ausgelastet.")
 
         except Exception as e:
-            st.error(f"⚠️ Beim Berechnen des Interfaces ist ein Fehler aufgetreten: {e}. Bitte lade die Seite neu.")
+            st.error(f"⚠️ Fehler beim Laden: {e}. Bitte überprüfe das Symbol.")
