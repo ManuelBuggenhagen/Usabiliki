@@ -11,28 +11,49 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS für den Aesthetic-Usability-Effect (Saubere Typografie, weiche Kanten, bessere Abstände)
+# Custom CSS für exzellente Tab-Usability (Kein Abschneiden, starker visueller Fokus)
 st.markdown("""
     <style>
     .reportview-container .main .block-container{ max-width: 1200px; padding-top: 2rem; }
     h1 { font-weight: 800; color: #1e293b; letter-spacing: -0.025em; }
     h2, h3 { color: #334155; font-weight: 700; }
-    .stTabs [data-baseweb="tab-list"] { gap: 8px; }
-    .stTabs [data-baseweb="tab"] { 
-        background-color: #f8fafc; 
-        border-radius: 6px 6px 0px 0px; 
-        padding: 8px 16px; 
-        border: 1px solid #e2e8f0;
-        font-weight: 600;
+
+    /* Hauptcontainer für Tab-Liste: Erlaubt horizontales Scrollen bei kleinen Bildschirmen statt Text zu stauchen */
+    .stTabs [data-baseweb="tab-list"] { 
+        gap: 10px; 
+        overflow-x: auto !important; 
+        white-space: nowrap !important;
     }
-    .stTabs [aria-selected="true"] { background-color: #ffffff !important; border-bottom: 2px solid #3b82f6 !important; }
+
+    /* Einzelner Tab im Normalzustand (Inaktiv): Gut lesbar, aber optisch im Hintergrund */
+    .stTabs [data-baseweb="tab"] { 
+        background-color: #f1f5f9 !important; 
+        color: #475569 !important;
+        border-radius: 6px 6px 0px 0px; 
+        padding: 10px 20px !important; 
+        border: 1px solid #cbd5e1 !important;
+        font-weight: 600 !important;
+        display: inline-flex !important;
+        white-space: nowrap !important;
+        text-overflow: unset !important;
+        overflow: visible !important;
+    }
+
+    /* Aktiver / Ausgewählter Tab: Maximale visuelle Hervorhebung (Fokus-Signal) */
+    .stTabs [aria-selected="true"] { 
+        background-color: #e0f2fe !important; /* Klares Hellblau */
+        color: #0369a1 !important; /* Kontrastreicher dunkelblauer Text */
+        border: 1px solid #7dd3fc !important;
+        border-bottom: 4px solid #0284c7 !important; /* Dicke Balken-Hervorhebung */
+        font-weight: 700 !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
 st.title("📊 Nutzerzentriertes Aktien- & Volatilitäts-Dashboard")
 st.caption("Konzipiert für Gelegenheitsanleger zur intuitiven Analyse von Marktschwankungen.")
 
-# --- SIDEBAR (INFORMATIONSARCHITEKTUR & HICK'S LAW REFACTOR) ---
+# --- SIDEBAR ---
 st.sidebar.header("⚙️ Bedienfeld & Filter")
 st.sidebar.markdown("Stelle hier deine gewünschten Werte ein. Alle Änderungen werden sofort live berechnet.")
 
@@ -50,7 +71,7 @@ ticker_input_2 = st.sidebar.text_input(
     help="Trage hier ein zweites Kürzel ein (z. B. MSFT für Microsoft), um ein Stärkenprofil und einen direkten Performance-Vergleich freizuschalten."
 ).upper().strip()
 
-st.sidebar.markdown("---")  # Optischer Trenner für mentale Kategorisierung
+st.sidebar.markdown("---")
 
 time_period = st.sidebar.selectbox(
     "Betrachtungszeitraum:",
@@ -63,7 +84,6 @@ time_period = st.sidebar.selectbox(
     help="Wähle aus, wie weit der Blick in die Vergangenheit reichen soll. Für Casual User wird standardmäßig 1 Jahr empfohlen."
 )
 
-# Globaler Switch für Prozent-Vergleich
 normalize = False
 if ticker_input_2:
     normalize = st.sidebar.checkbox(
@@ -72,14 +92,13 @@ if ticker_input_2:
         help="Setzt den Startwert beider Aktien im Chart künstlich auf 0%. Nur so lässt sich die reine Wertentwicklung unabhängig vom absoluten Euro-Preis vergleichen."
     )
 
-# --- VALIDIERUNG & DATENABRUF (ROBUSTHEIT GEGEN BENUTZERFEHLER) ---
+# --- VALIDIERUNG & DATENABRUF ---
 if not ticker_input_1:
     st.info(
         "💡 Bitte gib ein gültiges Aktien-Ticker-Symbol in der linken Seitenleiste ein, um das Dashboard zu starten.")
 else:
     with st.spinner("🚀 Marktdaten werden barrierefrei aufbereitet..."):
         try:
-            # Daten für Aktie 1 holen
             data_1 = yf.Ticker(ticker_input_1)
             df_1 = data_1.history(period=time_period)
             try:
@@ -87,7 +106,6 @@ else:
             except:
                 info_1 = {}
 
-            # MSCI World als Benchmark im Hintergrund laden
             try:
                 msci_data = yf.Ticker("URTH")
                 df_msci = msci_data.history(period=time_period)
@@ -98,7 +116,6 @@ else:
                 st.error(
                     f"❌ Das Symbol '{ticker_input_1}' konnte nicht geladen werden. Bitte überprüfe die Schreibweise in der Seitenleiste.")
             else:
-                # Daten für Aktie 2 holen
                 df_2 = pd.DataFrame()
                 info_2 = {}
                 if ticker_input_2:
@@ -112,7 +129,7 @@ else:
                         st.sidebar.warning(
                             f"⚠️ Für '{ticker_input_2}' wurden keine Daten gefunden. Das Vergleichs-Feature wird ausgeblendet.")
 
-                # --- 1. PROMINENTE KPIs (AUFGABENANGEMESSENHEIT) ---
+                # --- 1. PROMINENTE KPIs ---
                 st.markdown("### 🔍 Aktueller Marktstatus (Schlusskurse)")
                 kpi_cols = st.columns(2 if not df_2.empty else 1)
 
@@ -124,14 +141,12 @@ else:
                         differenz = aktueller_kurs - vortag_kurs
                         prozent = (differenz / vortag_kurs) * 100
                         waehrung = info.get('currency', 'USD')
-
-                        # Barrierefreier Textzusatz für Screenreader / Farbfehlsichtigkeit
-                        richtung = "🔺 Gewinn" if differenz >= 0 else "🔻 Verlust"
+                        richtungs_text = "🔺 Gewinn:" if differenz >= 0 else "🔻 Verlust:"
 
                         col.metric(
                             label=f"{ticker} ({info.get('shortName', 'Aktie')})",
                             value=f"{aktueller_kurs:.2f} {waehrung}",
-                            delta=f"{richtung} {differenz:.2f} {waehrung} ({prozent:.2f}%)"
+                            delta=f"{richtungs_text} {differenz:.2f} {waehrung} ({prozent:.2f}%)"
                         )
 
 
@@ -141,7 +156,7 @@ else:
 
                 st.markdown("---")
 
-                # --- 2. ERWEITERTE STRUKTUR (PROGRESSIVE DISCLOSURE TABS) ---
+                # --- 2. ERWEITERTE STRUKTUR (TABS) ---
                 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
                     "🔮 1. Anlage-Kompass",
                     "📈 2. Kursverlauf & Labor",
@@ -153,7 +168,7 @@ else:
 
                 report_text = f"=== ANLAGE-REPORT ===\nZeitraum: {time_period}\n\n"
 
-                # --- TAB 1: ANLAGE-KOMPASS (BARRIEREFREIES STÄRKENPROFILE) ---
+                # --- TAB 1: ANLAGE-KOMPASS ---
                 with tab1:
                     st.subheader("💡 Intuitive Entscheidungshilfe für Gelegenheitsanleger")
                     st.markdown(
@@ -169,23 +184,19 @@ else:
                         sma_30 = df['Close'].rolling(window=30).mean().iloc[-1] if len(df) >= 30 else current_price
                         rec_key = info.get('recommendationKey', 'none').lower()
 
-                        # Eindeutige Icons & redundante Farb-Text-Signale (WCAG Konformität)
                         if "buy" in rec_key or current_price > (sma_30 * 1.03):
                             col.success(
-                                "📈 **Kauf-Signal / Nachkaufen** — Die Aktie befindet sich in einem stabilen Aufwärtstrend und wird von Branchenexperten positiv bewertet.")
+                                "📈 **Kauf-Signal / Nachkaufen** — Die Aktie befindet sich in einem stabilen Aufwärtstrend.")
                             signal_txt = "Kauf-Signal"
                         elif "sell" in rec_key or current_price < (sma_30 * 0.97):
-                            col.error(
-                                "📉 **Verkaufs-Signal / Erhöhte Vorsicht** — Der aktuelle Trend zeigt nach unten oder Analysten raten derzeit vom Einstieg ab.")
+                            col.error("📉 **Verkaufs-Signal / Erhöhte Vorsicht** — Der aktuelle Trend zeigt nach unten.")
                             signal_txt = "Verkaufs-Signal"
                         else:
-                            col.warning(
-                                "↔️ **Halte-Signal / Abwarten** — Es liegt kein klarer Trend vor. Bestehende Aktien sollten gehalten, Neukäufe verschoben werden.")
+                            col.warning("↔️ **Halte-Signal / Abwarten** — Es liegt kein klarer Trend vor.")
                             signal_txt = "Halte-Signal"
 
                         report_text += f"Aktie: {ticker}\nUrteil: {signal_txt}\n"
 
-                        # Berechnung der normierten Scores (1-5)
                         kgv = info.get('trailingPE')
                         kgv_score = 5 if not kgv or kgv < 15 else (4 if kgv < 25 else (2 if kgv < 40 else 1))
                         div = info.get('dividendYield', 0)
@@ -222,13 +233,11 @@ else:
                         )
                         col.plotly_chart(fig, use_container_width=True)
 
-                        # Erklärungstexte erleichtern Laien das Verstehen der Grafik
                         with col.expander("📝 Details zum Stärkenprofil einsehen"):
-                            st.write(
-                                f"**Schwankungsrisiko (Beta):** `{beta:.2f}` (Ein Wert nahe 1.00 bedeutet Gleichlauf mit dem Weltmarkt).")
+                            st.write(f"**Schwankungsrisiko (Beta):** `{beta:.2f}`")
                             if info.get('targetMeanPrice'):
                                 st.write(
-                                    f"**Kursziel der Experten:** `{target:.2f}` {info.get('currency', 'USD')} (Erwartetes Potenzial: `{potential:.2f}%`).")
+                                    f"**Kursziel der Experten:** `{target:.2f}` {info.get('currency', 'USD')} (Potenzial: `{potential:.2f}%`).")
 
 
                     theme_blue = {'fill': 'rgba(59, 130, 246, 0.25)', 'line': '#3b82f6'}
@@ -246,11 +255,10 @@ else:
                         mime="text/plain"
                     )
 
-                # --- TAB 2: KURSVERLAUF & VOLATILITÄTS-LABOR (STEUERBARKEIT) ---
+                # --- TAB 2: KURSVERLAUF & VOLATILITÄTS-LABOR ---
                 with tab2:
                     st.subheader("📈 Interaktiver Kursverlauf")
 
-                    # Intelligente UI-Einschränkung (Fehlerminimierung): Candlesticks nur bei Einzelaktie erlauben
                     if df_2.empty:
                         chart_view = st.radio(
                             "Visualisierungs-Modus wählen:",
@@ -289,7 +297,6 @@ else:
                         if show_msci and not df_msci.empty:
                             chart_data["MSCI World Index (Weltmarkt)"] = df_msci['Close']
 
-                        # Erwartungskonforme Skalierungs-Automatik bei Indexvergleichen
                         if normalize or show_msci:
                             chart_data = (chart_data / chart_data.iloc[0] - 1) * 100
                             st.line_chart(chart_data)
@@ -308,7 +315,6 @@ else:
                                 f"📉 **Maximaler Verlust (Szenario: Kauf zum Höchstpunkt, Verkauf am absoluten Tiefpunkt):** `{calc_max_drawdown(df_1):.2f}%`")
 
                     else:
-                        # Einzeichnen verständlicher Formen zur Candlestick-Mustererkennung
                         st.markdown(
                             "**Mustererkennung im Kerzenchart:** Das System sucht automatisch nach klassischen Formationen.")
                         df_1['Body'] = abs(df_1['Open'] - df_1['Close'])
@@ -343,7 +349,7 @@ else:
                                                  xaxis_rangeslider_visible=False)
                         st.plotly_chart(fig_candle, use_container_width=True)
 
-                # --- TAB 3: FUNDAMENTAL-ANALYSE (SELBSTBESCHREIBUNGSFÄHIGKEIT) ---
+                # --- TAB 3: FUNDAMENTAL-ANALYSE ---
                 with tab3:
                     st.subheader("🔬 Fundamentale Firmenkennzahlen")
                     st.markdown(
@@ -372,19 +378,17 @@ else:
                     if not df_2.empty:
                         zeige_fundamentals_accessible(info_2, f_cols[1], ticker_input_2)
 
-                # --- TAB 4: RENDITE-RECHNER & MIXER (ERLERNBARKEIT) ---
+                # --- TAB 4: RENDITE-RECHNER & MIXER ---
                 with tab4:
                     st.subheader("💰 Vermögens-Simulator & Portfolio-Mischer")
                     st.markdown(
                         "Bewege die Regler, um spielerisch zu lernen, wie Diversifikation (Risikostreuung) die Stabilität deines Ersparten erhöht.")
 
                     invest_sum = st.slider("Investitionsbetrag wählen (€):", min_value=100, max_value=10000, value=1000,
-                                           step=100,
-                                           help="Verschiebe den Slider, um ein fiktives Startkapital festzulegen.")
+                                           step=100)
 
                     if not df_2.empty:
-                        weight_1 = st.slider(f"Gewichtung von {ticker_input_1} im Depot (%)", 0, 100, 50, 5,
-                                             help="Bestimme, wie viel Prozent deines Kapitals in die erste Aktie fließen soll. Der Rest geht automatisch in Aktie 2.")
+                        weight_1 = st.slider(f"Gewichtung von {ticker_input_1} im Depot (%)", 0, 100, 50, 5)
                         weight_2 = 100 - weight_1
 
                         start_1, end_1 = df_1['Close'].iloc[0], df_1['Close'].iloc[-1]
@@ -403,7 +407,6 @@ else:
                         st.markdown("---")
                         mix_cols = st.columns(2)
 
-                        # Deutliche Textsignale begleiten die Zahlenwerte
                         mix_cols[0].metric(label="Depot-Endwert nach Ablauf des Zeitraums",
                                            value=f"{total_end_val:.2f} €",
                                            delta=f"{'🔺 Gewinn:' if total_profit >= 0 else '🔻 Verlust:'} {total_profit:.2f} € ({total_perf_percent:.2f}%)")
@@ -431,8 +434,6 @@ else:
                 # --- TAB 5: NEWS & SCHLAGZEILEN ---
                 with tab5:
                     st.subheader("📰 Aktuelle Berichte & Markttreiber")
-                    st.markdown(
-                        "Nachrichten sind der Hauptgrund für kurzfristige Volatilität. Hier liest du die wichtigsten Hintergründe:")
                     news_cols = st.columns(2 if not df_2.empty else 1)
 
 
@@ -461,11 +462,9 @@ else:
                     if not df_2.empty:
                         zeige_news_clean(data_2, news_cols[1], ticker_input_2)
 
-                # --- TAB 6: ROHDATEN (INFORMATION OVERLOAD SCHUTZ) ---
+                # --- TAB 6: ROHDATEN ---
                 with tab6:
                     st.subheader("📋 Unverarbeitete Tabellen-Rohdaten")
-                    st.markdown(
-                        "Dieses Kapitel richtet sich an fortgeschrittene Datenanalysten. Es zeigt die exakten mathematischen Tabellenreihen aus der Programmierschnittstelle.")
                     st.write(f"**Tägliche Kursdaten für {ticker_input_1}:**")
                     st.dataframe(df_1, use_container_width=True)
 
