@@ -304,10 +304,39 @@ else:
                     col.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
                     with col.expander("📝 Details zum Stärkenprofil einsehen"):
-                        st.write(f"**Schwankungsrisiko (Beta):** `{beta:.2f}`")
+                        st.markdown(
+                            f"""
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(241, 245, 249, 0.05); padding-bottom: 8px;">
+                                <div style="display: flex; align-items: center;">
+                                    <span style="font-weight: 600; font-size: 14px;">Schwankungsrisiko (Beta)</span>
+                                    <span style="display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; border: 1.5px solid #94a3b8; width: 16px; height: 16px; font-size: 11px; cursor: help; color: #94a3b8; margin-left: 8px; font-weight: bold; font-family: sans-serif;" title="Das Beta misst, wie stark die Aktie im Vergleich zum Gesamtmarkt schwankt.&#10;&#10;• Beta > 1.0: Stärkere Schwankungen (höheres Risiko)&#10;• Beta = 1.0: Gleiche Schwankungen wie der Markt&#10;• Beta < 1.0: Ruhigere Kursbewegungen (weniger Risiko)">?</span>
+                                </div>
+                                <code style="font-size: 14px; background-color: rgba(241, 245, 249, 0.08); padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(241, 245, 249, 0.15); font-family: monospace;">{beta:.2f}</code>
+                            </div>
+                            """, 
+                            unsafe_allow_html=True
+                        )
                         if info.get('targetMeanPrice'):
-                            st.write(f"**Kursziel der Experten:** `{target:.2f}` {info.get('currency', 'USD')}")
-                            st.write(f"**Analysten-Potenzial:** `{potential:.2f}%`")
+                            currency = info.get('currency', 'USD')
+                            st.markdown(
+                                f"""
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(241, 245, 249, 0.05); padding-bottom: 8px;">
+                                    <div style="display: flex; align-items: center;">
+                                        <span style="font-weight: 600; font-size: 14px;">Kursziel der Experten</span>
+                                        <span style="display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; border: 1.5px solid #94a3b8; width: 16px; height: 16px; font-size: 11px; cursor: help; color: #94a3b8; margin-left: 8px; font-weight: bold; font-family: sans-serif;" title="Das von professionellen Finanzanalysten geschätzte durchschnittliche Kursziel der Aktie für die nächsten 12 Monate.">?</span>
+                                    </div>
+                                    <code style="font-size: 14px; background-color: rgba(241, 245, 249, 0.08); padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(241, 245, 249, 0.15); font-family: monospace;">{target:.2f} {currency}</code>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(241, 245, 249, 0.05); padding-bottom: 8px;">
+                                    <div style="display: flex; align-items: center;">
+                                        <span style="font-weight: 600; font-size: 14px;">Analysten-Potenzial</span>
+                                        <span style="display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; border: 1.5px solid #94a3b8; width: 16px; height: 16px; font-size: 11px; cursor: help; color: #94a3b8; margin-left: 8px; font-weight: bold; font-family: sans-serif;" title="Die prozentuale Differenz zwischen dem aktuellen Kurs und dem Experten-Kursziel.&#10;&#10;• Positiver Wert: Analysten erwarten Kurssteigerungen&#10;• Negativer Wert: Analysten erwarten Kursrückgänge">?</span>
+                                    </div>
+                                    <code style="font-size: 14px; background-color: rgba(241, 245, 249, 0.08); padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(241, 245, 249, 0.15); font-family: monospace;">{potential:.2f}%</code>
+                                </div>
+                                """, 
+                                unsafe_allow_html=True
+                            )
 
 
                 theme_blue = {'fill': 'rgba(59, 130, 246, 0.25)', 'line': '#3b82f6'}
