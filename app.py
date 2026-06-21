@@ -431,7 +431,7 @@ else:
                 st.markdown(
                     "Bewege die Regler, um spielerisch zu lernen, wie Diversifikation (Risikostreuung) die Stabilität deines Ersparten erhöht.")
 
-                col_invest, _ = st.columns([1, 3])
+                col_invest, _ = st.columns([1, 2])
                 with col_invest:
                     invest_sum = st.number_input("Investitionsbetrag eingeben (€):", min_value=1, value=1000, step=100)
 
