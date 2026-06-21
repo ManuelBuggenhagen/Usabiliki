@@ -53,22 +53,22 @@ st.markdown("""
 st.title("📊 Nutzerzentriertes Aktien- & Volatilitäts-Dashboard")
 st.caption("Konzipiert für Gelegenheitsanleger zur intuitiven Analyse von Marktschwankungen.")
 
-# --- SIDEBAR ---
-st.sidebar.header("⚙️ Bedienfeld & Filter")
-st.sidebar.markdown("Stelle hier deine gewünschten Werte ein. Alle Änderungen werden sofort live berechnet.")
+# --- SIDEBAR (MAXIMAL MINIMALISTISCH NACH HICK'S LAW) ---
+st.sidebar.header("⚙️ Daten-Eingabe")
+st.sidebar.markdown("Gib hier die gewünschten Unternehmen ein, die geladen werden sollen.")
 
 ticker_input_1 = st.sidebar.text_input(
     "1. Hauptaktie (Ticker-Symbol):",
     value="AAPL",
     max_chars=5,
-    help="Gib das internationale Kürzel der Aktie ein (z. B. AAPL für Apple, TSLA für Tesla). Kleinbuchstaben werden automatisch korrigiert."
+    help="Gib das internationale Kürzel der Aktie ein (z. B. AAPL für Apple, TSLA für Tesla)."
 ).upper().strip()
 
 ticker_input_2 = st.sidebar.text_input(
     "2. Vergleichsaktie (Optional):",
     value="",
     max_chars=5,
-    help="Trage hier ein zweites Kürzel ein (z. B. MSFT für Microsoft), um ein Stärkenprofil und einen direkten Performance-Vergleich freizuschalten."
+    help="Trage hier ein zweites Kürzel ein (z. B. MSFT für Microsoft), um einen direkten Vergleich freizuschalten."
 ).upper().strip()
 
 st.sidebar.markdown("---")
@@ -81,16 +81,8 @@ time_period = st.sidebar.selectbox(
         "1mo": "📅 1 Monat", "3mo": "📅 3 Monate", "6mo": "📅 6 Monate",
         "1y": "📅 1 Jahr (Standard)", "2y": "📅 2 Jahre", "5y": "📅 5 Jahre", "max": "⏳ Maximale Historie"
     }[x],
-    help="Wähle aus, wie weit der Blick in die Vergangenheit reichen soll. Für Casual User wird standardmäßig 1 Jahr empfohlen."
+    help="Wähle aus, wie weit der Blick in die Vergangenheit reichen soll."
 )
-
-normalize = False
-if ticker_input_2:
-    normalize = st.sidebar.checkbox(
-        "Performance prozentual vergleichen (%)",
-        value=True,
-        help="Setzt den Startwert beider Aktien im Chart künstlich auf 0%. Nur so lässt sich die reine Wertentwicklung unabhängig vom absoluten Euro-Preis vergleichen."
-    )
 
 # --- VALIDIERUNG & DATENABRUF ---
 if not ticker_input_1:
@@ -99,6 +91,7 @@ if not ticker_input_1:
 else:
     with st.spinner("🚀 Marktdaten werden barrierefrei aufbereitet..."):
         try:
+            # 1. Hauptaktie laden
             data_1 = yf.Ticker(ticker_input_1)
             df_1 = data_1.history(period=time_period)
             try:
@@ -106,6 +99,7 @@ else:
             except:
                 info_1 = {}
 
+            # 2. MSCI World als Benchmark laden
             try:
                 msci_data = yf.Ticker("URTH")
                 df_msci = msci_data.history(period=time_period)
@@ -114,8 +108,9 @@ else:
 
             if df_1.empty:
                 st.error(
-                    f"❌ Das Symbol '{ticker_input_1}' konnte nicht geladen werden. Bitte überprüfe die Schreibweise in der Seitenleiste.")
+                    f"❌ Das Symbol '{ticker_input_1}' konnte nicht geladen werden. Bitte überprüfe die Schreibweise.")
             else:
+                # 3. Vergleichsaktie laden
                 df_2 = pd.DataFrame()
                 info_2 = {}
                 if ticker_input_2:
@@ -126,8 +121,7 @@ else:
                     except:
                         info_2 = {}
                     if df_2.empty:
-                        st.sidebar.warning(
-                            f"⚠️ Für '{ticker_input_2}' wurden keine Daten gefunden. Das Vergleichs-Feature wird ausgeblendet.")
+                        st.sidebar.warning(f"⚠️ Für '{ticker_input_2}' wurden keine Daten gefunden.")
 
                 # --- 1. PROMINENTE KPIs ---
                 st.markdown("### 🔍 Aktueller Marktstatus (Schlusskurse)")
@@ -254,7 +248,7 @@ else:
                         mime="text/plain"
                     )
 
-                # --- TAB 2: KURSVERLAUF & VOLATILITÄTS-LABOR (JETZT MIT ROHDATEN-EXPANDER!) ---
+                # --- TAB 2: KURSVERLAUF & VOLATILITÄTS-LABOR (LOKALE CHECKBOX INTEGRIERT) ---
                 with tab2:
                     st.subheader("📈 Interaktiver Kursverlauf")
 
@@ -273,13 +267,32 @@ else:
 
                     if chart_view == "Einfache Linie (Einsteiger-UX)":
                         st.markdown("**🔍 Optionale Filter & Zusatzlinien zuschalten:**")
-                        lab_cols = st.columns(4)
-                        show_sma = lab_cols[0].checkbox("🔄 30-Tage Durchschnitt (Trendlinie)",
-                                                        value=True) if not normalize else False
-                        show_bollinger = lab_cols[1].checkbox("🛡️ Bollinger Bänder (Schwankungskanal)",
-                                                              value=False) if not normalize else False
-                        show_drawdown = lab_cols[2].checkbox("📉 Max. historischen Einbruch messen", value=False)
-                        show_msci = lab_cols[3].checkbox("🌍 MSCI World Benchmark einblenden", value=False)
+
+                        # Dynamische Spaltenanzahl: 5 Spalten wenn Vergleich aktiv, sonst 4
+                        num_cols = 5 if not df_2.empty else 4
+                        lab_cols = st.columns(num_cols)
+
+                        col_idx = 0
+                        normalize = False
+
+                        # HIER IST DIE UX-OPTIMIERUNG: Die Checkbox sitzt jetzt lokal im Tab!
+                        if not df_2.empty:
+                            normalize = lab_cols[col_idx].checkbox(
+                                "📊 Prozentualer Vergleich (%)",
+                                value=True,
+                                help="Setzt den Startwert beider Aktien künstlich auf 0%, um die reine Wertentwicklung unabhängig vom absoluten Preis vergleichen zu können."
+                            )
+                            col_idx += 1
+
+                        show_sma = lab_cols[col_idx].checkbox("🔄 30-Tage Schnitt (Trend)",
+                                                              value=True) if not normalize else False
+                        col_idx += 1
+                        show_bollinger = lab_cols[col_idx].checkbox("🛡️ Bollinger Bänder (Kanal)",
+                                                                    value=False) if not normalize else False
+                        col_idx += 1
+                        show_drawdown = lab_cols[col_idx].checkbox("📉 Maximaler Verlust", value=False)
+                        col_idx += 1
+                        show_msci = lab_cols[col_idx].checkbox("🌍 MSCI World Index", value=False)
 
                         chart_data = pd.DataFrame()
                         chart_data[ticker_input_1] = df_1['Close']
@@ -300,7 +313,7 @@ else:
                             chart_data = (chart_data / chart_data.iloc[0] - 1) * 100
                             st.line_chart(chart_data)
                             st.caption(
-                                "⚠️ System-Hinweis: Da unterschiedliche Vermögenswerte oder Indizes verglichen werden, wurde die Skala automatisch auf **prozentuale Entwicklung (%)** normiert.")
+                                "⚠️ System-Hinweis: Da ein Benchmark- oder Aktienvergleich aktiv ist, wurde die vertikale Achse automatisch auf **prozentuale Entwicklung (%)** normiert.")
                         else:
                             st.line_chart(chart_data)
 
@@ -348,7 +361,6 @@ else:
                                                  xaxis_rangeslider_visible=False)
                         st.plotly_chart(fig_candle, use_container_width=True)
 
-                    # INTRARIERTES ROHDATEN-FEATURE UNTER DEM GRAPH (HIER IST DIE NEUE ÄNDERUNG!)
                     st.markdown("---")
                     with st.expander("📋 Technische Rohdaten einsehen (Für fortgeschrittene Datenanalysten)"):
                         st.markdown(
