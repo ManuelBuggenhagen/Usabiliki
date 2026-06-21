@@ -89,21 +89,33 @@ if custom_ticker_input_1:
 elif selected_option_1:
     ticker_input_1 = STOCK_OPTIONS[selected_option_1]
 
-# 2. Vergleichsaktie Suche
-selected_option_2 = st.sidebar.selectbox(
-    "2. Vergleichsunternehmen suchen (Optional):",
-    options=list(STOCK_OPTIONS.keys()),
-    index=None,
-    placeholder="Optional: Name oder Kürzel eintippen...",
-    help="Wähle optional ein zweites Unternehmen für den direkten Stärkenvergleich aus."
-)
+# Checkbox für Vergleich aktivieren
+compare_stock = st.sidebar.checkbox("⚖️ Aktie vergleichen", value=False, help="Aktiviere diese Option, um ein zweites Unternehmen für den direkten Vergleich hinzuzufügen.")
 
 ticker_input_2 = None
-if selected_option_2:
-    if STOCK_OPTIONS[selected_option_2] == "CUSTOM":
-        ticker_input_2 = st.sidebar.text_input("Weltweites Ticker-Symbol (Vergleich) eingeben:", value="",
-                                               max_chars=5).upper().strip()
-    else:
+selected_option_2 = None
+custom_ticker_input_2 = ""
+
+if compare_stock:
+    # 2. Vergleichsaktie Suche
+    selected_option_2 = st.sidebar.selectbox(
+        "2. Top Aktien auf einen Blick (Vergleich):",
+        options=[k for k in STOCK_OPTIONS.keys() if STOCK_OPTIONS[k] != "CUSTOM"],
+        index=None,
+        placeholder="Wähle eine Vergleichsaktie...",
+        help="Wähle ein beliebtes Vergleichsunternehmen aus der Liste."
+    )
+
+    custom_ticker_input_2 = st.sidebar.text_input(
+        "✍️ Oder eigenes Ticker-Symbol (Vergleich) eingeben:",
+        value="",
+        max_chars=10,
+        help="Gib hier ein beliebiges Vergleichs-Ticker-Symbol ein (z. B. 'MSFT' oder 'SAP.DE')."
+    ).upper().strip()
+
+    if custom_ticker_input_2:
+        ticker_input_2 = custom_ticker_input_2
+    elif selected_option_2:
         ticker_input_2 = STOCK_OPTIONS[selected_option_2]
 
 st.sidebar.markdown("---")
@@ -160,7 +172,7 @@ else:
                     info_2 = data_2.info
                 except:
                     info_2 = {}
-                name_2 = info_2.get('longName', selected_option_2.split(" (")[0])
+                name_2 = info_2.get('longName', selected_option_2.split(" (")[0] if selected_option_2 else ticker_input_2)
 
             # --- 1. PROMINENTE KPIs ---
             st.markdown(f"### 🔍 Aktueller Marktstatus (Schlusskurse)")
