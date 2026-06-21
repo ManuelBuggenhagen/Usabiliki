@@ -295,12 +295,13 @@ else:
                         polar=dict(
                             radialaxis=dict(visible=True, range=[0, 5], tickvals=[1, 3, 5],
                                             ticktext=['Niedrig', 'Mittel', 'Hoch'],
-                                            tickfont=dict(size=11, color="#64748b")),
-                            angularaxis=dict(tickfont=dict(size=12, color="#ffffff"))
+                                            tickfont=dict(size=13, color="#64748b")),
+                            angularaxis=dict(tickfont=dict(size=14, color="#ffffff"))
                         ),
-                        showlegend=False, height=360, margin=dict(l=40, r=40, t=20, b=20)
+                        dragmode=False,
+                        showlegend=False, height=500, margin=dict(l=40, r=40, t=20, b=20)
                     )
-                    col.plotly_chart(fig, use_container_width=True)
+                    col.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
                     with col.expander("📝 Details zum Stärkenprofil einsehen"):
                         st.write(f"**Schwankungsrisiko (Beta):** `{beta:.2f}`")
