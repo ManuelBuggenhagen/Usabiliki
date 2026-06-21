@@ -18,14 +18,14 @@ st.markdown("""
     h1 { font-weight: 800; color: #1e293b; letter-spacing: -0.025em; }
     h2, h3 { color: #334155; font-weight: 700; }
 
-    /* Hauptcontainer für Tab-Liste: Erlaubt horizontales Scrollen bei kleinen Bildschirmen statt Text zu stauchen */
+    /* Hauptcontainer für Tab-Liste */
     .stTabs [data-baseweb="tab-list"] { 
         gap: 10px; 
         overflow-x: auto !important; 
         white-space: nowrap !important;
     }
 
-    /* Einzelner Tab im Normalzustand (Inaktiv): Gut lesbar, aber optisch im Hintergrund */
+    /* Einzelner Tab im Normalzustand (Inaktiv) */
     .stTabs [data-baseweb="tab"] { 
         background-color: #f1f5f9 !important; 
         color: #475569 !important;
@@ -39,12 +39,12 @@ st.markdown("""
         overflow: visible !important;
     }
 
-    /* Aktiver / Ausgewählter Tab: Maximale visuelle Hervorhebung (Fokus-Signal) */
+    /* Aktiver / Ausgewählter Tab */
     .stTabs [aria-selected="true"] { 
-        background-color: #e0f2fe !important; /* Klares Hellblau */
-        color: #0369a1 !important; /* Kontrastreicher dunkelblauer Text */
+        background-color: #e0f2fe !important; 
+        color: #0369a1 !important; 
         border: 1px solid #7dd3fc !important;
-        border-bottom: 4px solid #0284c7 !important; /* Dicke Balken-Hervorhebung */
+        border-bottom: 4px solid #0284c7 !important; 
         font-weight: 700 !important;
     }
     </style>
@@ -157,13 +157,12 @@ else:
                 st.markdown("---")
 
                 # --- 2. ERWEITERTE STRUKTUR (TABS) ---
-                tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+                tab1, tab2, tab3, tab4, tab5 = st.tabs([
                     "🔮 1. Anlage-Kompass",
                     "📈 2. Kursverlauf & Labor",
                     "🔬 3. Fundamental-Analyse",
                     "💰 4. Rendite-Rechner & Mixer",
-                    "📰 5. Nachrichten-Feed",
-                    "📋 6. Technische Rohdaten"
+                    "📰 5. Nachrichten-Feed"
                 ])
 
                 report_text = f"=== ANLAGE-REPORT ===\nZeitraum: {time_period}\n\n"
@@ -255,7 +254,7 @@ else:
                         mime="text/plain"
                     )
 
-                # --- TAB 2: KURSVERLAUF & VOLATILITÄTS-LABOR ---
+                # --- TAB 2: KURSVERLAUF & VOLATILITÄTS-LABOR (JETZT MIT ROHDATEN-EXPANDER!) ---
                 with tab2:
                     st.subheader("📈 Interaktiver Kursverlauf")
 
@@ -348,6 +347,17 @@ else:
                         fig_candle.update_layout(height=400, margin=dict(l=10, r=10, t=10, b=10),
                                                  xaxis_rangeslider_visible=False)
                         st.plotly_chart(fig_candle, use_container_width=True)
+
+                    # INTRARIERTES ROHDATEN-FEATURE UNTER DEM GRAPH (HIER IST DIE NEUE ÄNDERUNG!)
+                    st.markdown("---")
+                    with st.expander("📋 Technische Rohdaten einsehen (Für fortgeschrittene Datenanalysten)"):
+                        st.markdown(
+                            "Hier findest du die unverarbeiteten mathematischen Tabellenreihen direkt aus der Programmierschnittstelle.")
+                        st.write(f"**Tägliche Kursdaten für {ticker_input_1}:**")
+                        st.dataframe(df_1, use_container_width=True)
+                        if not df_2.empty:
+                            st.write(f"**Tägliche Kursdaten für {ticker_input_2}:**")
+                            st.dataframe(df_2, use_container_width=True)
 
                 # --- TAB 3: FUNDAMENTAL-ANALYSE ---
                 with tab3:
@@ -461,12 +471,6 @@ else:
                     zeige_news_clean(data_1, news_cols[0], ticker_input_1)
                     if not df_2.empty:
                         zeige_news_clean(data_2, news_cols[1], ticker_input_2)
-
-                # --- TAB 6: ROHDATEN ---
-                with tab6:
-                    st.subheader("📋 Unverarbeitete Tabellen-Rohdaten")
-                    st.write(f"**Tägliche Kursdaten für {ticker_input_1}:**")
-                    st.dataframe(df_1, use_container_width=True)
 
         except Exception as e:
             st.error(f"⚠️ Beim Berechnen des Interfaces ist ein Fehler aufgetreten: {e}. Bitte lade die Seite neu.")
