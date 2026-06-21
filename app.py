@@ -431,7 +431,9 @@ else:
                 st.markdown(
                     "Bewege die Regler, um spielerisch zu lernen, wie Diversifikation (Risikostreuung) die Stabilität deines Ersparten erhöht.")
 
-                invest_sum = st.number_input("Investitionsbetrag eingeben (€):", min_value=1, value=1000, step=100)
+                col_invest, _ = st.columns([1, 3])
+                with col_invest:
+                    invest_sum = st.number_input("Investitionsbetrag eingeben (€):", min_value=1, value=1000, step=100)
 
                 if not df_2.empty:
                     weight_1 = st.slider(f"Gewichtung von {name_1} im Depot (%)", 0, 100, 50, 5)
