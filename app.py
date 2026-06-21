@@ -295,10 +295,10 @@ else:
                         polar=dict(
                             radialaxis=dict(visible=True, range=[0, 5], tickvals=[1, 3, 5],
                                             ticktext=['Niedrig', 'Mittel', 'Hoch'],
-                                            tickfont=dict(size=9, color="#64748b")),
-                            angularaxis=dict(tickfont=dict(size=10, color="#ffffff"))
+                                            tickfont=dict(size=11, color="#64748b")),
+                            angularaxis=dict(tickfont=dict(size=12, color="#ffffff"))
                         ),
-                        showlegend=False, height=280, margin=dict(l=40, r=40, t=20, b=20)
+                        showlegend=False, height=360, margin=dict(l=40, r=40, t=20, b=20)
                     )
                     col.plotly_chart(fig, use_container_width=True)
 
