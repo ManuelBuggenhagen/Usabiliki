@@ -1,4 +1,4 @@
-import streamlit as st
+import streamlit as st  # Hier war der Fehler – jetzt korrekt 'as st'
 import yfinance as yf
 import pandas as pd
 import numpy as np
@@ -11,7 +11,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS für exzellente Tab-Usability
+# Custom CSS für exzellente Tab-Usability (Kein Abschneiden, starker visueller Fokus)
 st.markdown("""
     <style>
     .reportview-container .main .block-container{ max-width: 1200px; padding-top: 2rem; }
@@ -45,11 +45,11 @@ st.markdown("""
 st.title("📊 Nutzerzentriertes Aktien- & Volatilitäts-Dashboard")
 st.caption("Konzipiert für Gelegenheitsanleger zur intuitiven Analyse von Marktschwankungen.")
 
-# --- SIDEBAR (INTELLIGENTE COMBOBOX REFACTOR) ---
+# --- SIDEBAR (SUCHE MIT LEEREM INITIALZUSTAND) ---
 st.sidebar.header("⚙️ Aktien-Suche")
-st.sidebar.markdown("Tippe den echten Namen oder das Kürzel ein (z. B. 'Nvidia' oder 'NVDA') und drücke Enter.")
+st.sidebar.markdown("Tippe den echten Namen oder das Kürzel ein (z. B. 'Nvidia' oder 'NVDA').")
 
-# Erweitertes Wörterbuch: Suchbar nach Name ODER Kürzel
+# Wörterbuch beliebter Aktien
 STOCK_OPTIONS = {
     "Apple Inc. (AAPL)": "AAPL",
     "NVIDIA Corporation (NVDA)": "NVDA",
@@ -67,36 +67,39 @@ STOCK_OPTIONS = {
     "✨ Eigener Ticker / Freie Eingabe...": "CUSTOM"
 }
 
-# 1. Hauptaktie Steuerung
+# 1. Hauptaktie Suche (index=None erzwingt den leeren Startzustand)
 selected_option_1 = st.sidebar.selectbox(
     "1. Hauptunternehmen suchen:",
     options=list(STOCK_OPTIONS.keys()),
-    index=0,
-    help="Tippe Buchstaben ein, um Vorschläge zu filtern. Klicke auf ein Ergebnis oder drücke Enter."
+    index=None,
+    placeholder="Fange an zu tippen...",
+    help="Tippe Buchstaben des Namens oder Kürzels ein. Die Vorschläge erscheinen automatisch."
 )
 
-if STOCK_OPTIONS[selected_option_1] == "CUSTOM":
-    ticker_input_1 = st.sidebar.text_input("Weltweites Ticker-Symbol eingeben:", value="AAPL",
-                                           max_chars=5).upper().strip()
-else:
-    ticker_input_1 = STOCK_OPTIONS[selected_option_1]
+ticker_input_1 = None
+if selected_option_1:
+    if STOCK_OPTIONS[selected_option_1] == "CUSTOM":
+        ticker_input_1 = st.sidebar.text_input("Weltweites Ticker-Symbol eingeben:", value="AAPL",
+                                               max_chars=5).upper().strip()
+    else:
+        ticker_input_1 = STOCK_OPTIONS[selected_option_1]
 
-# 2. Vergleichsaktie Steuerung
-COMPARE_OPTIONS = {"-- Kein Vergleich --": ""}
-COMPARE_OPTIONS.update(STOCK_OPTIONS)
-
+# 2. Vergleichsaktie Suche
 selected_option_2 = st.sidebar.selectbox(
     "2. Vergleichsunternehmen suchen (Optional):",
-    options=list(COMPARE_OPTIONS.keys()),
-    index=0,
+    options=list(STOCK_OPTIONS.keys()),
+    index=None,
+    placeholder="Optional: Name oder Kürzel eintippen...",
     help="Wähle optional ein zweites Unternehmen für den direkten Stärkenvergleich aus."
 )
 
-if COMPARE_OPTIONS[selected_option_2] == "CUSTOM":
-    ticker_input_2 = st.sidebar.text_input("Weltweites Ticker-Symbol (Vergleich) eingeben:", value="",
-                                           max_chars=5).upper().strip()
-else:
-    ticker_input_2 = COMPARE_OPTIONS[selected_option_2]
+ticker_input_2 = None
+if selected_option_2:
+    if STOCK_OPTIONS[selected_option_2] == "CUSTOM":
+        ticker_input_2 = st.sidebar.text_input("Weltweites Ticker-Symbol (Vergleich) eingeben:", value="",
+                                               max_chars=5).upper().strip()
+    else:
+        ticker_input_2 = STOCK_OPTIONS[selected_option_2]
 
 st.sidebar.markdown("---")
 
@@ -108,11 +111,20 @@ time_period = st.sidebar.selectbox(
         "1mo": "📅 1 Monat", "3mo": "📅 3 Monate", "6mo": "📅 6 Monate",
         "1y": "📅 1 Jahr (Standard)", "2y": "📅 2 Jahre", "5y": "📅 5 Jahre", "max": "⏳ Maximale Historie"
     }[x],
-    help="Wähle aus, wie weit der Blick in die Vergangenheit reichen soll."
+    help="Bestimmt das Startdatum der historischen Zeitreihen."
 )
 
-# --- DATENABRUF ---
-if ticker_input_1:
+# --- HAUPTFENSTER: PRÜFUNG AUF LEEREN ZUSTAND (EMPTY STATE UX) ---
+if not selected_option_1:
+    st.markdown("### 👋 Willkommen im Volatilitäts-Dashboard")
+    st.info(
+        "💡 **Es ist noch kein Unternehmen ausgewählt.**\n\nBitte nutze das Suchfeld **'1. Hauptunternehmen suchen'** in der linken Seitenleiste, um ein Unternehmen auszuwählen. Sobald du anfängst zu tippen, werden dir automatisch passende Vorschläge angezeigt.")
+    st.markdown("---")
+    st.caption(
+        "✨ **Tipp für den Einstieg:** Tippe einfach mal **'Nvidia'** oder das Kürzel **'AAPL'** links ein, um die interaktiven Stärkenprofile und Risiko-Analysen live zu testen.")
+
+else:
+    # --- DATENABRUF & VERARBEITUNG BEI AKTIVER AUSWAHL ---
     with st.spinner("🚀 Marktdaten werden benutzerfreundlich aufbereitet..."):
         try:
             # 1. Hauptaktie laden
