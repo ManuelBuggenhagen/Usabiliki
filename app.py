@@ -45,44 +45,58 @@ st.markdown("""
 st.title("📊 Nutzerzentriertes Aktien- & Volatilitäts-Dashboard")
 st.caption("Konzipiert für Gelegenheitsanleger zur intuitiven Analyse von Marktschwankungen.")
 
-# --- SIDEBAR ---
-st.sidebar.header("⚙️ Aktien-Auswahl")
-st.sidebar.markdown("Wähle Unternehmen anhand ihres echten Namens aus. Kürzel wurden vollständig entfernt.")
+# --- SIDEBAR (INTELLIGENTE COMBOBOX REFACTOR) ---
+st.sidebar.header("⚙️ Aktien-Suche")
+st.sidebar.markdown("Tippe den echten Namen oder das Kürzel ein (z. B. 'Nvidia' oder 'NVDA') und drücke Enter.")
 
-# Vordefiniertes Wörterbuch beliebter Aktien (Verhindert Tippfehler komplett)
+# Erweitertes Wörterbuch: Suchbar nach Name ODER Kürzel
 STOCK_OPTIONS = {
-    "Apple Inc.": "AAPL",
-    "NVIDIA Corporation": "NVDA",
-    "Microsoft Corporation": "MSFT",
-    "Tesla, Inc.": "TSLA",
-    "Amazon.com, Inc.": "AMZN",
-    "Alphabet Inc. (Google)": "GOOGL",
-    "Meta Platforms, Inc. (Facebook)": "META",
-    "Netflix, Inc.": "NFLX",
-    "SAP SE": "SAP",
-    "Siemens AG": "SIE.DE",
-    "Allianz SE": "ALV.DE"
+    "Apple Inc. (AAPL)": "AAPL",
+    "NVIDIA Corporation (NVDA)": "NVDA",
+    "Microsoft Corporation (MSFT)": "MSFT",
+    "Tesla, Inc. (TSLA)": "TSLA",
+    "Amazon.com, Inc. (AMZN)": "AMZN",
+    "Alphabet Inc. / Google (GOOGL)": "GOOGL",
+    "Meta Platforms, Inc. (META)": "META",
+    "Netflix, Inc. (NFLX)": "NFLX",
+    "Advanced Micro Devices (AMD)": "AMD",
+    "Intel Corporation (INTC)": "INTC",
+    "SAP SE (SAP)": "SAP",
+    "Siemens AG (SIE.DE)": "SIE.DE",
+    "Allianz SE (ALV.DE)": "ALV.DE",
+    "✨ Eigener Ticker / Freie Eingabe...": "CUSTOM"
 }
 
-selected_company_1 = st.sidebar.selectbox(
-    "1. Hauptunternehmen wählen:",
+# 1. Hauptaktie Steuerung
+selected_option_1 = st.sidebar.selectbox(
+    "1. Hauptunternehmen suchen:",
     options=list(STOCK_OPTIONS.keys()),
     index=0,
-    help="Wähle das Unternehmen aus, dessen Kursschwankungen und Kennzahlen du im Detail analysieren möchtest."
+    help="Tippe Buchstaben ein, um Vorschläge zu filtern. Klicke auf ein Ergebnis oder drücke Enter."
 )
-ticker_input_1 = STOCK_OPTIONS[selected_company_1]
 
-# Vorbereitung der Vergleichsliste mit einer leeren Option
+if STOCK_OPTIONS[selected_option_1] == "CUSTOM":
+    ticker_input_1 = st.sidebar.text_input("Weltweites Ticker-Symbol eingeben:", value="AAPL",
+                                           max_chars=5).upper().strip()
+else:
+    ticker_input_1 = STOCK_OPTIONS[selected_option_1]
+
+# 2. Vergleichsaktie Steuerung
 COMPARE_OPTIONS = {"-- Kein Vergleich --": ""}
 COMPARE_OPTIONS.update(STOCK_OPTIONS)
 
-selected_company_2 = st.sidebar.selectbox(
-    "2. Vergleichsunternehmen wählen (Optional):",
+selected_option_2 = st.sidebar.selectbox(
+    "2. Vergleichsunternehmen suchen (Optional):",
     options=list(COMPARE_OPTIONS.keys()),
     index=0,
-    help="Wähle optional ein zweites Unternehmen aus, um ein vergleichendes Stärkenprofil und eine Gegenüberstellung zu aktivieren."
+    help="Wähle optional ein zweites Unternehmen für den direkten Stärkenvergleich aus."
 )
-ticker_input_2 = COMPARE_OPTIONS[selected_company_2]
+
+if COMPARE_OPTIONS[selected_option_2] == "CUSTOM":
+    ticker_input_2 = st.sidebar.text_input("Weltweites Ticker-Symbol (Vergleich) eingeben:", value="",
+                                           max_chars=5).upper().strip()
+else:
+    ticker_input_2 = COMPARE_OPTIONS[selected_option_2]
 
 st.sidebar.markdown("---")
 
@@ -94,13 +108,14 @@ time_period = st.sidebar.selectbox(
         "1mo": "📅 1 Monat", "3mo": "📅 3 Monate", "6mo": "📅 6 Monate",
         "1y": "📅 1 Jahr (Standard)", "2y": "📅 2 Jahre", "5y": "📅 5 Jahre", "max": "⏳ Maximale Historie"
     }[x],
-    help="Bestimmt das Startdatum der historischen Zeitreihen."
+    help="Wähle aus, wie weit der Blick in die Vergangenheit reichen soll."
 )
 
 # --- DATENABRUF ---
 if ticker_input_1:
     with st.spinner("🚀 Marktdaten werden benutzerfreundlich aufbereitet..."):
         try:
+            # 1. Hauptaktie laden
             data_1 = yf.Ticker(ticker_input_1)
             df_1 = data_1.history(period=time_period)
             try:
@@ -108,14 +123,15 @@ if ticker_input_1:
             except:
                 info_1 = {}
 
+            # 2. Benchmark laden
             try:
                 msci_data = yf.Ticker("URTH")
                 df_msci = msci_data.history(period=time_period)
             except:
                 df_msci = pd.DataFrame()
 
-            # Dynamische Namensauflösung für die restliche App
-            name_1 = info_1.get('longName', selected_company_1)
+            # Dynamische Namensauflösung für alle Reiter
+            name_1 = info_1.get('longName', selected_option_1.split(" (")[0])
 
             df_2 = pd.DataFrame()
             info_2 = {}
@@ -127,7 +143,7 @@ if ticker_input_1:
                     info_2 = data_2.info
                 except:
                     info_2 = {}
-                name_2 = info_2.get('longName', selected_company_2)
+                name_2 = info_2.get('longName', selected_option_2.split(" (")[0])
 
             # --- 1. PROMINENTE KPIs ---
             st.markdown(f"### 🔍 Aktueller Marktstatus (Schlusskurse)")
@@ -242,7 +258,6 @@ if ticker_input_1:
                 theme_blue = {'fill': 'rgba(59, 130, 246, 0.25)', 'line': '#3b82f6'}
                 theme_purple = {'fill': 'rgba(147, 51, 234, 0.25)', 'line': '#9333ea'}
 
-                # BUGFIX HIER: tab1.columns-Käse entfernt und sauber durch kompass_cols[0] ersetzt!
                 rendere_kompass_refactored(name_1, df_1, info_1, kompass_cols[0], theme_blue)
                 if not df_2.empty:
                     rendere_kompass_refactored(name_2, df_2, info_2, kompass_cols[1], theme_purple)
@@ -402,7 +417,7 @@ if ticker_input_1:
             with tab4:
                 st.subheader("💰 Vermögens-Simulator & Portfolio-Mischer")
                 st.markdown(
-                    "Bewege die Regler, um spielerisch zu lernen, wie Diversifikation (Risikostreuung) die Stabilität deines Er Ersparten erhöht.")
+                    "Bewege die Regler, um spielerisch zu lernen, wie Diversifikation (Risikostreuung) die Stabilität deines Ersparten erhöht.")
 
                 invest_sum = st.slider("Investitionsbetrag wählen (€):", min_value=100, max_value=10000, value=1000,
                                        step=100)
