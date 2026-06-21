@@ -67,39 +67,43 @@ STOCK_OPTIONS = {
     "✨ Eigener Ticker / Freie Eingabe...": "CUSTOM"
 }
 
-# 1. Hauptaktie Suche (index=None erzwingt den leeren Startzustand)
-selected_option_1 = st.sidebar.selectbox(
-    "1. Hauptunternehmen suchen:",
-    options=list(STOCK_OPTIONS.keys()),
-    index=None,
-    placeholder="Fange an zu tippen...",
-    help="Tippe Buchstaben des Namens oder Kürzels ein. Die Vorschläge erscheinen automatisch."
-)
+# --- SIDEBAR (DYNAMISCHE ECHTZEIT-SUCHE) ---
+st.sidebar.header("⚙️ Aktien-Suche")
 
+def get_stock_suggestions(query):
+    """Sucht live bei Yahoo Finance nach Aktienvorschlägen."""
+    if len(query) < 3:
+        return {}
+    try:
+        # yfinance hat eine interne Suche, die wir hier nutzen
+        ticker = yf.Ticker(query)
+        # Wir nutzen eine vereinfachte Suche (Yahoo-API liefert oft ein 'quoteType')
+        search_results = yf.search_ticker(query)
+        suggestions = {f"{r['longname']} ({r['symbol']})": r['symbol'] for r in search_results[:10]}
+        return suggestions
+    except:
+        return {}
+
+# 1. Hauptaktie
+user_query_1 = st.sidebar.text_input("1. Unternehmen suchen (z.B. Nvidia):", key="search_1", help="Tippe min. 3 Zeichen ein.")
 ticker_input_1 = None
-if selected_option_1:
-    if STOCK_OPTIONS[selected_option_1] == "CUSTOM":
-        ticker_input_1 = st.sidebar.text_input("Weltweites Ticker-Symbol eingeben:", value="AAPL",
-                                               max_chars=5).upper().strip()
+
+if user_query_1:
+    suggestions_1 = get_stock_suggestions(user_query_1)
+    if suggestions_1:
+        selected_1 = st.sidebar.selectbox("Vorschläge:", list(suggestions_1.keys()))
+        ticker_input_1 = suggestions_1[selected_1]
     else:
-        ticker_input_1 = STOCK_OPTIONS[selected_option_1]
+        st.sidebar.warning("Keine Treffer. Tippe weiter oder versuche ein Kürzel.")
 
-# 2. Vergleichsaktie Suche
-selected_option_2 = st.sidebar.selectbox(
-    "2. Vergleichsunternehmen suchen (Optional):",
-    options=list(STOCK_OPTIONS.keys()),
-    index=None,
-    placeholder="Optional: Name oder Kürzel eintippen...",
-    help="Wähle optional ein zweites Unternehmen für den direkten Stärkenvergleich aus."
-)
-
+# 2. Vergleichsaktie (Analog...)
+user_query_2 = st.sidebar.text_input("2. Unternehmen (Vergleich):", key="search_2")
 ticker_input_2 = None
-if selected_option_2:
-    if STOCK_OPTIONS[selected_option_2] == "CUSTOM":
-        ticker_input_2 = st.sidebar.text_input("Weltweites Ticker-Symbol (Vergleich) eingeben:", value="",
-                                               max_chars=5).upper().strip()
-    else:
-        ticker_input_2 = STOCK_OPTIONS[selected_option_2]
+if user_query_2:
+    suggestions_2 = get_stock_suggestions(user_query_2)
+    if suggestions_2:
+        selected_2 = st.sidebar.selectbox("Vorschläge (Vergleich):", list(suggestions_2.keys()))
+        ticker_input_2 = suggestions_2[selected_2]
 
 st.sidebar.markdown("---")
 
@@ -115,7 +119,7 @@ time_period = st.sidebar.selectbox(
 )
 
 # --- HAUPTFENSTER: PRÜFUNG AUF LEEREN ZUSTAND (EMPTY STATE UX) ---
-if not selected_option_1:
+if not user_query_1:
     st.markdown("### 👋 Willkommen im Volatilitäts-Dashboard")
     st.info(
         "💡 **Es ist noch kein Unternehmen ausgewählt.**\n\nBitte nutze das Suchfeld **'1. Hauptunternehmen suchen'** in der linken Seitenleiste, um ein Unternehmen auszuwählen. Sobald du anfängst zu tippen, werden dir automatisch passende Vorschläge angezeigt.")
@@ -143,7 +147,7 @@ else:
                 df_msci = pd.DataFrame()
 
             # Dynamische Namensauflösung für alle Reiter
-            name_1 = info_1.get('longName', selected_option_1.split(" (")[0])
+            name_1 = info_1.get('longName', user_query_1.split(" (")[0])
 
             df_2 = pd.DataFrame()
             info_2 = {}
@@ -155,7 +159,7 @@ else:
                     info_2 = data_2.info
                 except:
                     info_2 = {}
-                name_2 = info_2.get('longName', selected_option_2.split(" (")[0])
+                name_2 = info_2.get('longName', user_query_2.split(" (")[0])
 
             # --- 1. PROMINENTE KPIs ---
             st.markdown(f"### 🔍 Aktueller Marktstatus (Schlusskurse)")
