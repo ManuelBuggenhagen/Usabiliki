@@ -304,10 +304,23 @@ else:
                     col.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
                     with col.expander("📝 Details zum Stärkenprofil einsehen"):
-                        st.write(f"**Schwankungsrisiko (Beta):** `{beta:.2f}`")
+                        st.metric(
+                            label="Schwankungsrisiko (Beta)", 
+                            value=f"{beta:.2f}", 
+                            help="Das Beta misst, wie stark die Aktie im Vergleich zum Gesamtmarkt schwankt.\n\n• Beta > 1.0: Stärkere Schwankungen (höheres Risiko)\n• Beta = 1.0: Gleiche Schwankungen wie der Markt\n• Beta < 1.0: Ruhigere Kursbewegungen (weniger Risiko)"
+                        )
                         if info.get('targetMeanPrice'):
-                            st.write(f"**Kursziel der Experten:** `{target:.2f}` {info.get('currency', 'USD')}")
-                            st.write(f"**Analysten-Potenzial:** `{potential:.2f}%`")
+                            currency = info.get('currency', 'USD')
+                            st.metric(
+                                label="Kursziel der Experten", 
+                                value=f"{target:.2f} {currency}", 
+                                help="Das von professionellen Finanzanalysten geschätzte durchschnittliche Kursziel der Aktie für die nächsten 12 Monate."
+                            )
+                            st.metric(
+                                label="Analysten-Potenzial", 
+                                value=f"{potential:.2f}%", 
+                                help="Die prozentuale Differenz zwischen dem aktuellen Kurs und dem Experten-Kursziel.\n\n• Positiver Wert: Analysten erwarten Kurssteigerungen\n• Negativer Wert: Analysten erwarten Kursrückgänge"
+                            )
 
 
                 theme_blue = {'fill': 'rgba(59, 130, 246, 0.25)', 'line': '#3b82f6'}
