@@ -70,27 +70,35 @@ STOCK_OPTIONS = {
 st.sidebar.markdown("---")
 st.sidebar.subheader("🎯 Primäraktie")
 
-# 1. Hauptaktie Suche (index=None erzwingt den leeren Startzustand)
-selected_option_1 = st.sidebar.selectbox(
-    "1. Top Aktien auf einen Blick:",
-    options=[k for k in STOCK_OPTIONS.keys() if STOCK_OPTIONS[k] != "CUSTOM"],
-    index=None,
-    placeholder="Wähle eine Aktie...",
-    help="Wähle ein beliebtes Unternehmen aus der Liste."
+# Toggle für Eingabe-Modus der Primäraktie
+use_custom_ticker_1 = st.sidebar.toggle(
+    "Freie Ticker-Eingabe",
+    value=False,
+    help="💡 Schalte um, um entweder eine beliebte Aktie aus der Liste zu wählen (AUS) oder ein beliebiges globales Ticker-Symbol (z. B. 'MSFT' oder 'SAP.DE') einzugeben (AN)."
 )
 
-custom_ticker_input_1 = st.sidebar.text_input(
-    "✍️ Oder eigenes Ticker-Symbol eingeben:",
-    value="",
-    max_chars=10,
-    help="Gib hier ein beliebiges Ticker-Symbol ein (z. B. 'MSFT' für Microsoft oder 'SAP.DE' für SAP)."
-).upper().strip()
-
 ticker_input_1 = None
-if custom_ticker_input_1:
-    ticker_input_1 = custom_ticker_input_1
-elif selected_option_1:
-    ticker_input_1 = STOCK_OPTIONS[selected_option_1]
+selected_option_1 = None
+custom_ticker_input_1 = ""
+
+if use_custom_ticker_1:
+    custom_ticker_input_1 = st.sidebar.text_input(
+        "✍️ Eigenes Ticker-Symbol eingeben:",
+        value="",
+        max_chars=10,
+        help="Gib hier ein beliebiges Ticker-Symbol ein (z. B. 'MSFT' für Microsoft oder 'SAP.DE' für SAP)."
+    ).upper().strip()
+    ticker_input_1 = custom_ticker_input_1 if custom_ticker_input_1 else None
+else:
+    selected_option_1 = st.sidebar.selectbox(
+        "1. Top Aktien auf einen Blick:",
+        options=[k for k in STOCK_OPTIONS.keys() if STOCK_OPTIONS[k] != "CUSTOM"],
+        index=None,
+        placeholder="Wähle eine Aktie...",
+        help="Wähle ein beliebtes Unternehmen aus der Liste."
+    )
+    if selected_option_1:
+        ticker_input_1 = STOCK_OPTIONS[selected_option_1]
 
 st.sidebar.markdown("---")
 
@@ -106,26 +114,34 @@ if compare_stock:
     st.sidebar.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
     st.sidebar.subheader("⚖️ Vergleichsaktie")
 
-    # 2. Vergleichsaktie Suche
-    selected_option_2 = st.sidebar.selectbox(
-        "2. Top Aktien auf einen Blick (Vergleich):",
-        options=[k for k in STOCK_OPTIONS.keys() if STOCK_OPTIONS[k] != "CUSTOM"],
-        index=None,
-        placeholder="Wähle eine Vergleichsaktie...",
-        help="Wähle ein beliebtes Vergleichsunternehmen aus der Liste."
+    # Toggle für Eingabe-Modus der Vergleichsaktie
+    use_custom_ticker_2 = st.sidebar.toggle(
+        "Freie Ticker-Eingabe (Vergleich)",
+        value=False,
+        help="💡 Schalte um, um entweder eine beliebte Vergleichsaktie aus der Liste zu wählen (AUS) oder ein beliebiges globales Ticker-Symbol (z. B. 'MSFT' oder 'SAP.DE') einzugeben (AN).",
+        key="toggle_comp"
     )
 
-    custom_ticker_input_2 = st.sidebar.text_input(
-        "✍️ Oder eigenes Ticker-Symbol (Vergleich) eingeben:",
-        value="",
-        max_chars=10,
-        help="Gib hier ein beliebiges Vergleichs-Ticker-Symbol ein (z. B. 'MSFT' oder 'SAP.DE')."
-    ).upper().strip()
-
-    if custom_ticker_input_2:
-        ticker_input_2 = custom_ticker_input_2
-    elif selected_option_2:
-        ticker_input_2 = STOCK_OPTIONS[selected_option_2]
+    if use_custom_ticker_2:
+        custom_ticker_input_2 = st.sidebar.text_input(
+            "✍️ Eigenes Ticker-Symbol (Vergleich) eingeben:",
+            value="",
+            max_chars=10,
+            help="Gib hier ein beliebiges Vergleichs-Ticker-Symbol ein (z. B. 'MSFT' oder 'SAP.DE').",
+            key="custom_comp"
+        ).upper().strip()
+        ticker_input_2 = custom_ticker_input_2 if custom_ticker_input_2 else None
+    else:
+        selected_option_2 = st.sidebar.selectbox(
+            "2. Top Aktien auf einen Blick (Vergleich):",
+            options=[k for k in STOCK_OPTIONS.keys() if STOCK_OPTIONS[k] != "CUSTOM"],
+            index=None,
+            placeholder="Wähle eine Vergleichsaktie...",
+            help="Wähle ein beliebtes Vergleichsunternehmen aus der Liste.",
+            key="select_comp"
+        )
+        if selected_option_2:
+            ticker_input_2 = STOCK_OPTIONS[selected_option_2]
 
 st.sidebar.markdown("---")
 
