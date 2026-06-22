@@ -42,12 +42,11 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("📊 Nutzerzentriertes Aktien- & Volatilitäts-Dashboard")
+st.title("📊  Stockguide: Dein persöhnliches Aktiendashboard")
 st.caption("Konzipiert für Gelegenheitsanleger zur intuitiven Analyse von Marktschwankungen.")
 
 # --- SIDEBAR (SUCHE MIT LEEREM INITIALZUSTAND) ---
 st.sidebar.header("⚙️ Aktien-Suche")
-st.sidebar.markdown("Tippe den echten Namen oder das Kürzel ein (z. B. 'Nvidia' oder 'NVDA').")
 
 # Wörterbuch beliebter Aktien
 STOCK_OPTIONS = {
@@ -83,7 +82,7 @@ custom_ticker_input_1 = ""
 
 if use_custom_ticker_1:
     custom_ticker_input_1 = st.sidebar.text_input(
-        "✍️ Eigenes Ticker-Symbol eingeben:",
+        "✍️ Ticker-Symbol eingeben:",
         value="",
         max_chars=10,
         help="Gib hier ein beliebiges Ticker-Symbol ein (z. B. 'MSFT' für Microsoft oder 'SAP.DE' für SAP)."
@@ -116,7 +115,7 @@ if compare_stock:
 
     # Toggle für Eingabe-Modus der Vergleichsaktie
     use_custom_ticker_2 = st.sidebar.toggle(
-        "Freie Ticker-Eingabe (Vergleich)",
+        "Freie Ticker-Eingabe",
         value=False,
         help="💡 Schalte um, um entweder eine beliebte Vergleichsaktie aus der Liste zu wählen (AUS) oder ein beliebiges globales Ticker-Symbol (z. B. 'MSFT' oder 'SAP.DE') einzugeben (AN).",
         key="toggle_comp"
@@ -124,7 +123,7 @@ if compare_stock:
 
     if use_custom_ticker_2:
         custom_ticker_input_2 = st.sidebar.text_input(
-            "✍️ Eigenes Ticker-Symbol (Vergleich) eingeben:",
+            "✍️ Ticker-Symbol eingeben:",
             value="",
             max_chars=10,
             help="Gib hier ein beliebiges Vergleichs-Ticker-Symbol ein (z. B. 'MSFT' oder 'SAP.DE').",
