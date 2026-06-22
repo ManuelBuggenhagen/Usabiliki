@@ -166,7 +166,7 @@ if not ticker_input_1:
 
 else:
     # --- DATENABRUF & VERARBEITUNG BEI AKTIVER AUSWAHL ---
-    with st.spinner("🚀 Marktdaten werden benutzerfreundlich aufbereitet..."):
+    with st.spinner("🚀 Marktdaten werden aufbereitet..."):
         try:
             # 1. Hauptaktie laden
             data_1 = yf.Ticker(ticker_input_1)
@@ -228,9 +228,9 @@ else:
             # --- 2. TABS ---
             tab1, tab2, tab3, tab4, tab5 = st.tabs([
                 "🔮 1. Anlage-Kompass",
-                "📈 2. Kursverlauf & Labor",
+                "📈 2. Kursverlauf",
                 "🔬 3. Fundamental-Analyse",
-                "💰 4. Rendite-Rechner & Mixer",
+                "💰 4. Rendite-Rechner",
                 "📰 5. Nachrichten-Feed"
             ])
 
@@ -498,48 +498,48 @@ else:
 
             # --- TAB 4: RENDITE-RECHNER & MIXER ---
             with tab4:
-                st.subheader("💰 Vermögens-Simulator & Portfolio-Mischer")
-                st.markdown(
-                    "Bewege die Regler, um spielerisch zu lernen, wie Diversifikation (Risikostreuung) die Stabilität deines Ersparten erhöht.")
-
-                col_invest, _ = st.columns([1, 7])
-                with col_invest:
-                    invest_sum = st.number_input("Investitionsbetrag eingeben (€):", min_value=1, value=1000, step=100)
+                st.subheader("💰 Vermögens-Simulator")
 
                 if not df_2.empty:
-                    weight_1 = st.slider(f"Gewichtung von {name_1} im Depot (%)", 0, 100, 50, 5)
-                    weight_2 = 100 - weight_1
-                    st.caption(f"Daraus ergibt sich automatisch eine Gewichtung von **{weight_2}%** für **{name_2}**.")
+                    st.markdown(
+                        "Vergleiche die Wertentwicklung deiner Investments für beide ausgewählten Aktien über den gewählten Zeitraum.")
+
+                    col_inv1, col_inv2 = st.columns(2)
+                    with col_inv1:
+                        invest_sum_1 = st.number_input(f"Investitionsbetrag für {name_1} (€):", min_value=1, value=1000, step=100, key="invest_1")
+                    with col_inv2:
+                        invest_sum_2 = st.number_input(f"Investitionsbetrag für {name_2} (€):", min_value=1, value=1000, step=100, key="invest_2")
 
                     start_1, end_1 = df_1['Close'].iloc[0], df_1['Close'].iloc[-1]
-                    end_val_1 = (invest_sum * (weight_1 / 100)) * (end_1 / start_1)
+                    end_val_1 = invest_sum_1 * (end_1 / start_1)
+                    profit_1 = end_val_1 - invest_sum_1
+                    perf_percent_1 = (end_val_1 / invest_sum_1 - 1) * 100
+
                     start_2, end_2 = df_2['Close'].iloc[0], df_2['Close'].iloc[-1]
-                    end_val_2 = (invest_sum * (weight_2 / 100)) * (end_2 / start_2)
-
-                    total_end_val = end_val_1 + end_val_2
-                    total_profit = total_end_val - invest_sum
-                    total_perf_percent = (total_end_val / invest_sum - 1) * 100
-
-                    beta_1 = info_1.get('beta', 1.0)
-                    beta_2 = info_2.get('beta', 1.0)
-                    combined_beta = (weight_1 / 100) * beta_1 + (weight_2 / 100) * beta_2
+                    end_val_2 = invest_sum_2 * (end_2 / start_2)
+                    profit_2 = end_val_2 - invest_sum_2
+                    perf_percent_2 = (end_val_2 / invest_sum_2 - 1) * 100
 
                     st.markdown("---")
                     mix_cols = st.columns(2)
 
-                    mix_cols[0].metric(label="Depot-Endwert nach Ablauf des Zeitraums", value=f"{total_end_val:.2f} €",
-                                       delta=f"{'🔺 Gewinn:' if total_profit >= 0 else '🔻 Verlust:'} {total_profit:.2f} € ({total_perf_percent:.2f}%)")
+                    with mix_cols[0]:
+                        st.markdown(f"### **{name_1}**")
+                        st.metric(label="Depot-Endwert nach Ablauf des Zeitraums", value=f"{end_val_1:.2f} €",
+                                           delta=f"{'🔺 Gewinn:' if profit_1 >= 0 else '🔻 Verlust:'} {profit_1:.2f} € ({perf_percent_1:.2f}%)")
 
-                    if combined_beta > 1.3:
-                        status_mix = "🔥 Stark schwankend (Höheres Risiko)"
-                    elif combined_beta < 0.8:
-                        status_mix = "🛡️ Sehr wertstabil (Konservativ)"
-                    else:
-                        status_mix = "⚖️ Ausgewogenes Marktrisiko"
-
-                    mix_cols[1].metric(label="Kombiniertes Depot-Risiko (Beta)", value=f"{combined_beta:.2f}",
-                                       delta=status_mix, delta_color="off")
+                    with mix_cols[1]:
+                        st.markdown(f"### **{name_2}**")
+                        st.metric(label="Depot-Endwert nach Ablauf des Zeitraums", value=f"{end_val_2:.2f} €",
+                                           delta=f"{'🔺 Gewinn:' if profit_2 >= 0 else '🔻 Verlust:'} {profit_2:.2f} € ({perf_percent_2:.2f}%)")
                 else:
+                    st.markdown(
+                        "Berechne die Wertentwicklung deines Investments über den ausgewählten Zeitraum.")
+
+                    col_invest, _ = st.columns([1, 7])
+                    with col_invest:
+                        invest_sum = st.number_input("Investitionsbetrag eingeben (€):", min_value=1, value=1000, step=100)
+
                     st.info(
                         "💡 Gib in der Seitenleiste ein zweites Vergleichsunternehmen ein, um den interaktiven Portfolio-Mixer freizuschalten.")
                     start_price = df_1['Close'].iloc[0]
