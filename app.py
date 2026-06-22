@@ -43,7 +43,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("📊  Stockguide: Dein persöhnliches Aktiendashboard")
-st.caption("Konzipiert für Gelegenheitsanleger zur intuitiven Analyse von Marktschwankungen.")
+st.caption("Konzipiert für Gelegenheitsanleger zur intuitiven Analyse des Marktes.")
 
 # --- SIDEBAR (SUCHE MIT LEEREM INITIALZUSTAND) ---
 st.sidebar.header("⚙️ Aktien-Suche")
@@ -132,7 +132,7 @@ if compare_stock:
         ticker_input_2 = custom_ticker_input_2 if custom_ticker_input_2 else None
     else:
         selected_option_2 = st.sidebar.selectbox(
-            "2. Top Aktien auf einen Blick (Vergleich):",
+            "2. Top Aktien auf einen Blick:",
             options=[k for k in STOCK_OPTIONS.keys() if STOCK_OPTIONS[k] != "CUSTOM"],
             index=None,
             placeholder="Wähle eine Vergleichsaktie...",
@@ -157,9 +157,9 @@ time_period = st.sidebar.selectbox(
 
 # --- HAUPTFENSTER: PRÜFUNG AUF LEEREN ZUSTAND (EMPTY STATE UX) ---
 if not ticker_input_1:
-    st.markdown("### 👋 Willkommen im Volatilitäts-Dashboard")
+    st.markdown("### 👋 Willkommen im Dashboard")
     st.info(
-        "💡 **Es ist noch kein Unternehmen ausgewählt.**\n\nBitte wähle ein Unternehmen unter **'1. Top Aktien auf einen Blick'** aus oder gib ein eigenes Ticker-Symbol unter **'Oder eigenes Ticker-Symbol eingeben'** in der linken Seitenleiste ein.")
+        "💡 **Es ist noch kein Unternehmen ausgewählt.**\n\nBitte wähle ein Unternehmen unter  **'1. Top Aktien auf einen Blick'** aus oder gib ein eigenes Ticker-Symbol unter **'Oder eigenes Ticker-Symbol eingeben'** in der linken Seitenleiste ein.")
     st.markdown("---")
     st.caption(
         "✨ **Tipp für den Einstieg:** Tippe einfach mal **'Nvidia'** oder das Kürzel **'AAPL'** links ein, um die interaktiven Stärkenprofile und Risiko-Analysen live zu testen.")
