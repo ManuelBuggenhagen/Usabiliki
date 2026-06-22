@@ -532,6 +532,15 @@ else:
                         st.markdown(f"### **{name_2}**")
                         st.metric(label="Depot-Endwert nach Ablauf des Zeitraums", value=f"{end_val_2:.2f} €",
                                            delta=f"{'🔺 Gewinn:' if profit_2 >= 0 else '🔻 Verlust:'} {profit_2:.2f} € ({perf_percent_2:.2f}%)")
+
+                    st.markdown("---")
+                    perf_diff = perf_percent_1 - perf_percent_2
+                    if perf_diff > 0:
+                        st.success(f"🏆 **{name_1}** hat in diesem Zeitraum um **{perf_diff:.2f} %** besser abgeschnitten als **{name_2}**.")
+                    elif perf_diff < 0:
+                        st.warning(f"📉 **{name_1}** hat in diesem Zeitraum um **{abs(perf_diff):.2f} %** schlechter abgeschnitten als **{name_2}**.")
+                    else:
+                        st.info(f"⚖️ Beide Aktien haben in diesem Zeitraum exakt die gleiche Wertentwicklung erzielt ({perf_percent_1:.2f} %).")
                 else:
                     st.markdown(
                         "Berechne die Wertentwicklung deines Investments über den ausgewählten Zeitraum.")
