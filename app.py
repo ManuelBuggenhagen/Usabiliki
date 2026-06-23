@@ -67,7 +67,7 @@ STOCK_OPTIONS = {
 }
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("🎯 Primäraktien")
+st.sidebar.subheader("🎯 Primäraktie")
 
 # Toggle für Eingabe-Modus der Primäraktie
 use_custom_ticker_1 = st.sidebar.toggle(
