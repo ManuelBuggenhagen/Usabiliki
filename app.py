@@ -75,7 +75,8 @@ use_custom_ticker_1 = st.sidebar.toggle(
     value=False,
     help="💡 Schalte um, um entweder eine beliebte Aktie aus der Liste zu wählen (AUS) oder ein beliebiges globales Ticker-Symbol (z. B. 'MSFT' oder 'SAP.DE') einzugeben (AN)."
 )
-
+#changed stuff here
+#and here as well
 ticker_input_1 = None
 selected_option_1 = None
 custom_ticker_input_1 = ""
