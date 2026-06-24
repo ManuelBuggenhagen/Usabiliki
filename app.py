@@ -206,7 +206,7 @@ st.markdown("""
         padding: 0 !important;
         margin: 0 !important;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
-        font-size: 3.25rem !important; /* matches large st.title size */
+        font-size: 2.75rem !important; /* matches large st.title size */
         line-height: 1.25 !important;
         font-weight: 800 !important;
         color: inherit !important;
