@@ -1,7 +1,10 @@
+# pyrefly: ignore [missing-import]
 import streamlit as st 
+# pyrefly: ignore [missing-import]
 import yfinance as yf
 import pandas as pd
 import numpy as np
+# pyrefly: ignore [missing-import]
 import plotly.graph_objects as go
 
 @st.cache_data(ttl="1h")
@@ -13,7 +16,7 @@ def load_stock_data(ticker_symbol):
     except Exception:
         info = {}
     return df, info
-#
+
 @st.cache_data(ttl="1h")
 def load_msci_data():
     try:
@@ -51,6 +54,17 @@ def filter_data_by_period(df, period):
     return df.loc[start_date:]
 
 
+def set_selected_stock(select_key):
+    st.session_state["selected_option_1"] = select_key
+    st.session_state["use_custom_ticker_1"] = False
+
+def handle_custom_search():
+    val = st.session_state.get("landing_search_input_val", "").upper().strip()
+    if val:
+        st.session_state["use_custom_ticker_1"] = True
+        st.session_state["custom_ticker_input_1"] = val
+
+
 # --- CONFIGURATION & ACCESSIBLE STYLING ---
 st.set_page_config(
     page_title="Finanz-Dashboard für Gelegenheitsanleger",
@@ -62,8 +76,31 @@ st.set_page_config(
 st.markdown("""
     <style>
     .reportview-container .main .block-container{ max-width: 1200px; padding-top: 2rem; }
-    h1 { font-weight: 800; color: #1e293b; letter-spacing: -0.025em; }
-    h2, h3 { color: #334155; font-weight: 700; }
+    h1 { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; font-weight: 800; color: #1e293b; letter-spacing: -0.03em; }
+    h2, h3 { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; color: #334155; font-weight: 700; letter-spacing: -0.02em; }
+
+    /* Theme-respektierende, elegante Metric-Cards (Aesthetic-Usability-Effect) */
+    [data-testid="stMetric"] {
+        border: 1px solid rgba(148, 163, 184, 0.25) !important;
+        padding: 18px 24px !important;
+        border-radius: 10px !important;
+        background-color: rgba(148, 163, 184, 0.04) !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05) !important;
+    }
+    [data-testid="stMetricValue"] {
+        font-weight: 800 !important;
+    }
+    [data-testid="stMetricLabel"] {
+        font-weight: 600 !important;
+    }
+
+    /* Farbcodierung für spezielle Metriken (Verhindert vertikale Offsets in Spalten) */
+    div.third-metric-green div[data-testid="column"]:nth-of-type(3) [data-testid="stMetricValue"] {
+        color: #2ecc71 !important;
+    }
+    div.third-metric-red div[data-testid="column"]:nth-of-type(3) [data-testid="stMetricValue"] {
+        color: #e74c3c !important;
+    }
 
     /* Hauptcontainer für Tab-Liste */
     .stTabs [data-baseweb="tab-list"] { 
@@ -73,19 +110,20 @@ st.markdown("""
 
     /* Einzelner Tab im Normalzustand (Inaktiv) */
     .stTabs [data-baseweb="tab"] { 
-        background-color: #f1f5f9 !important; color: #475569 !important;
+        background-color: rgba(148, 163, 184, 0.08) !important; color: #475569 !important;
         border-radius: 6px 6px 0px 0px; padding: 10px 20px !important; 
-        border: 1px solid #cbd5e1 !important; font-weight: 600 !important;
+        border: 1px solid rgba(148, 163, 184, 0.2) !important; font-weight: 600 !important;
         display: inline-flex !important; white-space: nowrap !important;
         text-overflow: unset !important; overflow: visible !important;
     }
 
     /* Aktiver / Ausgewählter Tab */
     .stTabs [aria-selected="true"] { 
-        background-color: #e0f2fe !important; color: #0369a1 !important; 
-        border: 1px solid #7dd3fc !important; border-bottom: 4px solid #0284c7 !important; 
+        background-color: rgba(14, 165, 233, 0.12) !important; color: #0284c7 !important; 
+        border: 1px solid rgba(14, 165, 233, 0.4) !important; border-bottom: 4px solid #0284c7 !important; 
         font-weight: 700 !important;
     }
+
     </style>
 """, unsafe_allow_html=True)
 
@@ -119,8 +157,9 @@ st.sidebar.subheader("🎯 Primäraktie")
 # Toggle für Eingabe-Modus der Primäraktie
 use_custom_ticker_1 = st.sidebar.toggle(
     "Freie Ticker-Eingabe",
-    value=False,
-    help="💡 Schalte um, um entweder eine beliebte Aktie aus der Liste zu wählen (AUS) oder ein beliebiges globales Ticker-Symbol (z. B. 'MSFT' oder 'SAP.DE') einzugeben (AN)."
+    value=st.session_state.get("use_custom_ticker_1", False),
+    help="💡 Schalte um, um entweder eine beliebte Aktie aus der Liste zu wählen (AUS) oder ein beliebiges globales Ticker-Symbol (z. B. 'MSFT' oder 'SAP.DE') einzugeben (AN).",
+    key="use_custom_ticker_1"
 )
 #changed stuff here
 #and here as well
@@ -131,9 +170,10 @@ custom_ticker_input_1 = ""
 if use_custom_ticker_1:
     custom_ticker_input_1 = st.sidebar.text_input(
         "✍️ Ticker-Symbol eingeben:",
-        value="",
+        value=st.session_state.get("custom_ticker_input_1", ""),
         max_chars=10,
-        help="Gib hier ein beliebiges Ticker-Symbol ein (z. B. 'MSFT' für Microsoft oder 'SAP.DE' für SAP)."
+        help="Gib hier ein beliebiges Ticker-Symbol ein (z. B. 'MSFT' für Microsoft oder 'SAP.DE' für SAP).",
+        key="custom_ticker_input_1"
     ).upper().strip()
     ticker_input_1 = custom_ticker_input_1 if custom_ticker_input_1 else None
 else:
@@ -142,7 +182,8 @@ else:
         options=[k for k in STOCK_OPTIONS.keys() if STOCK_OPTIONS[k] != "CUSTOM"],
         index=None,
         placeholder="Wähle eine Aktie...",
-        help="Wähle ein beliebtes Unternehmen aus der Liste."
+        help="Wähle ein beliebtes Unternehmen aus der Liste.",
+        key="selected_option_1"
     )
     if selected_option_1:
         ticker_input_1 = STOCK_OPTIONS[selected_option_1]
@@ -192,12 +233,53 @@ if compare_stock:
 
 # --- HAUPTFENSTER: PRÜFUNG AUF LEEREN ZUSTAND (EMPTY STATE UX) ---
 if not ticker_input_1:
-    st.markdown("### 👋 Willkommen im Dashboard")
-    st.info(
-        "💡 **Es ist noch kein Unternehmen ausgewählt.**\n\nBitte wähle ein Unternehmen unter  **'1. Top Aktien auf einen Blick'** aus oder gib ein eigenes Ticker-Symbol unter **'Oder eigenes Ticker-Symbol eingeben'** in der linken Seitenleiste ein.")
+    st.markdown("""
+        <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 30px; border-radius: 12px; margin-bottom: 25px; border: 1px solid #334155; color: white;">
+            <h2 style="color: white; margin-top: 0px;">📊 Willkommen bei Stockguide</h2>
+            <p style="font-size: 16px; color: #cbd5e1; line-height: 1.6; margin-bottom: 0px;">
+                Dein persönliches Aktiendashboard zur schnellen und verständlichen Marktanalyse. Speziell konzipiert für Gelegenheitsanleger, um wichtige Finanzdaten übersichtlich und intuitiv darzustellen.
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("### 🎯 Schnelleinstieg: Wähle eine beliebte Aktie")
+    st.markdown("Klicke auf eines der Unternehmen, um die Analyse sofort zu starten:")
+    
+    # 2x4 Grid von beliebten Aktien für schnellen Klick
+    popular_keys = [
+        ("🍏 Apple (AAPL)", "Apple Inc. (AAPL)"),
+        ("🎮 NVIDIA (NVDA)", "NVIDIA Corporation (NVDA)"),
+        ("💻 Microsoft (MSFT)", "Microsoft Corporation (MSFT)"),
+        ("🚗 Tesla (TSLA)", "Tesla, Inc. (TSLA)"),
+        ("📦 Amazon (AMZN)", "Amazon.com, Inc. (AMZN)"),
+        ("🔍 Google (GOOGL)", "Alphabet Inc. / Google (GOOGL)"),
+        ("👥 Meta (META)", "Meta Platforms, Inc. (META)"),
+        ("💼 SAP SE (SAP)", "SAP SE (SAP)")
+    ]
+    
+    cols = st.columns(4)
+    for i, (label, select_key) in enumerate(popular_keys):
+        with cols[i % 4]:
+            st.button(
+                label, 
+                use_container_width=True, 
+                key=f"btn_{select_key}",
+                on_click=set_selected_stock,
+                args=(select_key,)
+            )
+
     st.markdown("---")
-    st.caption(
-        "✨ **Tipp für den Einstieg:** Tippe einfach mal **'Nvidia'** oder das Kürzel **'AAPL'** links ein, um die interaktiven Stärkenprofile und Risiko-Analysen live zu testen.")
+    
+    # Zusätzliche freie Suche auf der Landingpage zur Verringerung der Gulf of Execution
+    st.markdown("### ✍️ Oder suche direkt nach einem Ticker-Symbol")
+    
+    st.text_input(
+        "Gib ein globales Kürzel ein (z. B. 'MSFT' für Microsoft, 'SIE.DE' für Siemens):",
+        value="",
+        placeholder="z. B. AAPL, SAP.DE, MSFT...",
+        key="landing_search_input_val",
+        on_change=handle_custom_search
+    )
 
 else:
     # --- DATENABRUF & VERARBEITUNG BEI AKTIVER AUSWAHL ---
@@ -205,6 +287,11 @@ else:
         try:
             # 1. Hauptaktie laden
             df_1, info_1 = load_stock_data(ticker_input_1)
+
+            # Validierung der Hauptaktie zur Fehlervermeidung (Postel's Law / Nielsen Heuristik #5)
+            if df_1.empty:
+                st.error(f"⚠️ **Das Ticker-Symbol '{ticker_input_1}' konnte nicht geladen werden.**\n\nBitte überprüfe die Schreibweise in der Seitenleiste (z. B. 'AAPL' für Apple, 'NVDA' für NVIDIA oder 'SAP.DE' für SAP SE) und stelle sicher, dass eine Internetverbindung besteht.")
+                st.stop()
 
             # 2. Benchmark laden
             df_msci = load_msci_data()
@@ -217,7 +304,13 @@ else:
             name_2 = ""
             if ticker_input_2:
                 df_2, info_2 = load_stock_data(ticker_input_2)
-                name_2 = info_2.get('longName', selected_option_2.split(" (")[0] if selected_option_2 else ticker_input_2)
+                # Validierung der Vergleichsaktie zur Fehlervermeidung
+                if df_2.empty:
+                    st.warning(f"⚠️ **Die Vergleichsaktie '{ticker_input_2}' konnte nicht geladen werden.**\n\nDer Vergleich wird übersprungen. Bitte überprüfe die Schreibweise des Symbols.")
+                    ticker_input_2 = None
+                    df_2 = pd.DataFrame()
+                else:
+                    name_2 = info_2.get('longName', selected_option_2.split(" (")[0] if selected_option_2 else ticker_input_2)
 
             # --- 1. PROMINENTE KPIs ---
             st.markdown(f"### 🔍 Aktueller Marktstatus (Schlusskurse)")
@@ -287,12 +380,11 @@ else:
                     report_text += f"Unternehmen: {name}\nUrteil: {signal_txt}\n"
 
                     kgv = info.get('trailingPE')
-                    kgv_score = 5 if not kgv or kgv < 15 else (4 if kgv < 25 else (2 if kgv < 40 else 1))
-                    div = info.get('dividendYield', 0)
-                    div_score = 1 if not div or div == 0 else (2 if div < 0.015 else (4 if div < 0.035 else 5))
-                    beta = info.get('beta', 1.0)
-                    beta_score = 5 if beta < 0.75 else (
-                        4 if beta < 1.05 else (3 if beta < 1.35 else (2 if beta < 1.75 else 1)))
+                    kgv_score = 3 if kgv is None else (5 if kgv < 15 else (4 if kgv < 25 else (2 if kgv < 40 else 1)))
+                    div = info.get('dividendYield')
+                    div_score = 3 if div is None else (1 if div == 0 else (2 if div < 0.015 else (4 if div < 0.035 else 5)))
+                    beta = info.get('beta')
+                    beta_score = 3 if beta is None else (5 if beta < 0.75 else (4 if beta < 1.05 else (3 if beta < 1.35 else (2 if beta < 1.75 else 1))))
 
                     target = info.get('targetMeanPrice', current_price)
                     potential = ((target / current_price) - 1) * 100
@@ -300,8 +392,8 @@ else:
                     trend_score = 5 if current_price > (sma_30 * 1.06) else (
                         4 if current_price > sma_30 else (3 if current_price > (sma_30 * 0.94) else 1))
 
-                    categories = ['Günstige Bewertung (KGV)', 'Dividenden-Rendite', 'Kurs-Stabilität (Sicherheit)',
-                                  'Analysten-Potenzial', 'Trend-Stärke (SMA)']
+                    categories = ['KGV (Bewertung)', 'Dividendenrendite', 'Kurs-Stabilität',
+                                  'Analysten-Potenzial', 'Trend-Stärke']
                     values = [kgv_score, div_score, beta_score, pot_score, trend_score]
                     categories += [categories[0]]
                     values += [values[0]]
@@ -312,51 +404,62 @@ else:
                         fillcolor=color_theme['fill'], line=dict(color=color_theme['line'], width=2.5), name=name
                     ))
                     fig.update_layout(
+                        paper_bgcolor="rgba(15, 23, 42, 1)", # slate-900 für hervorragenden Kontrast
+                        plot_bgcolor="rgba(15, 23, 42, 1)",
                         polar=dict(
+                            bgcolor="rgba(30, 41, 59, 1)", # slate-800
                             radialaxis=dict(visible=True, range=[0, 5], tickvals=[1, 3, 5],
                                             ticktext=['Niedrig', 'Mittel', 'Hoch'],
-                                            tickfont=dict(size=13, color="#64748b")),
-                            angularaxis=dict(tickfont=dict(size=14, color="#ffffff"))
+                                            tickfont=dict(size=12, color="#94a3b8"),
+                                            gridcolor="rgba(71, 85, 105, 0.4)",
+                                            linecolor="rgba(71, 85, 105, 0.4)"),
+                            angularaxis=dict(tickfont=dict(size=13, color="#e2e8f0"),
+                                             gridcolor="rgba(71, 85, 105, 0.4)")
                         ),
                         dragmode=False,
-                        showlegend=False, height=500, margin=dict(l=40, r=40, t=20, b=20)
+                        showlegend=False, height=460, margin=dict(l=60, r=60, t=40, b=40)
                     )
                     col.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+                    col.markdown("""
+                        <div style="font-size: 13px; color: #64748b; text-align: center; margin-top: -10px; margin-bottom: 20px;">
+                            <i>Skala: 1 = Gering/Ungünstig | 3 = Neutral/Mittel | 5 = Hoch/Günstig</i>
+                        </div>
+                    """, unsafe_allow_html=True)
 
                     with col.expander("📝 Details zum Stärkenprofil einsehen"):
-                        st.markdown(
-                            f"""
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(241, 245, 249, 0.05); padding-bottom: 8px;">
-                                <div style="display: flex; align-items: center;">
-                                    <span style="font-weight: 600; font-size: 14px;">Schwankungsrisiko (Beta)</span>
-                                    <span style="display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; border: 1.5px solid #94a3b8; width: 16px; height: 16px; font-size: 11px; cursor: help; color: #94a3b8; margin-left: 8px; font-weight: bold; font-family: sans-serif;" title="Das Beta misst, wie stark die Aktie im Vergleich zum Gesamtmarkt schwankt.&#10;&#10;• Beta > 1.0: Stärkere Schwankungen (höheres Risiko)&#10;• Beta = 1.0: Gleiche Schwankungen wie der Markt&#10;• Beta < 1.0: Ruhigere Kursbewegungen (weniger Risiko)">?</span>
-                                </div>
-                                <code style="font-size: 14px; background-color: rgba(241, 245, 249, 0.08); padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(241, 245, 249, 0.15); font-family: monospace;">{beta:.2f}</code>
-                            </div>
-                            """, 
-                            unsafe_allow_html=True
-                        )
-                        if info.get('targetMeanPrice'):
-                            currency = info.get('currency', 'USD')
-                            st.markdown(
-                                f"""
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(241, 245, 249, 0.05); padding-bottom: 8px;">
-                                    <div style="display: flex; align-items: center;">
-                                        <span style="font-weight: 600; font-size: 14px;">Kursziel der Experten</span>
-                                        <span style="display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; border: 1.5px solid #94a3b8; width: 16px; height: 16px; font-size: 11px; cursor: help; color: #94a3b8; margin-left: 8px; font-weight: bold; font-family: sans-serif;" title="Das von professionellen Finanzanalysten geschätzte durchschnittliche Kursziel der Aktie für die nächsten 12 Monate.">?</span>
-                                    </div>
-                                    <code style="font-size: 14px; background-color: rgba(241, 245, 249, 0.08); padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(241, 245, 249, 0.15); font-family: monospace;">{target:.2f} {currency}</code>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(241, 245, 249, 0.05); padding-bottom: 8px;">
-                                    <div style="display: flex; align-items: center;">
-                                        <span style="font-weight: 600; font-size: 14px;">Analysten-Potenzial</span>
-                                        <span style="display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; border: 1.5px solid #94a3b8; width: 16px; height: 16px; font-size: 11px; cursor: help; color: #94a3b8; margin-left: 8px; font-weight: bold; font-family: sans-serif;" title="Die prozentuale Differenz zwischen dem aktuellen Kurs und dem Experten-Kursziel.&#10;&#10;• Positiver Wert: Analysten erwarten Kurssteigerungen&#10;• Negativer Wert: Analysten erwarten Kursrückgänge">?</span>
-                                    </div>
-                                    <code style="font-size: 14px; background-color: rgba(241, 245, 249, 0.08); padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(241, 245, 249, 0.15); font-family: monospace;">{potential:.2f}%</code>
-                                </div>
-                                """, 
-                                unsafe_allow_html=True
+                        target_price = info.get('targetMeanPrice')
+                        
+                        # Farbcodierte Einbettung des gesamten Spalten-Blocks über CSS-Klassen um vertikalen Versatz zu verhindern
+                        if target_price:
+                            if potential >= 0:
+                                st.markdown('<div class="third-metric-green">', unsafe_allow_html=True)
+                            else:
+                                st.markdown('<div class="third-metric-red">', unsafe_allow_html=True)
+                            col_d1, col_d2, col_d3 = st.columns(3)
+                        else:
+                            col_d1 = st.columns(1)[0]
+                        
+                        with col_d1:
+                            st.metric(
+                                label="Schwankungsrisiko (Beta)",
+                                value=f"{beta:.2f}",
+                                help="Das Beta misst, wie stark die Aktie im Vergleich zum Gesamtmarkt schwankt.\n\n• Beta > 1.0: Stärkere Schwankungen (höheres Risiko)\n• Beta = 1.0: Gleiche Schwankungen wie der Markt\n• Beta < 1.0: Ruhigere Kursbewegungen (weniger Risiko)"
                             )
+                        if target_price:
+                            currency = info.get('currency', 'USD')
+                            with col_d2:
+                                st.metric(
+                                    label="Kursziel der Experten",
+                                    value=f"{target:.2f} {currency}",
+                                    help="Das von professionellen Finanzanalysten geschätzte durchschnittliche Kursziel der Aktie für die nächsten 12 Monate."
+                                )
+                            with col_d3:
+                                st.metric(
+                                    label="Analysten-Potenzial",
+                                    value=f"{potential:+.2f}%",
+                                    help="Die prozentuale Differenz zwischen dem aktuellen Kurs und dem Experten-Kursziel.\n\n• Positiver Wert: Analysten erwarten Kurssteigerungen\n• Negativer Wert: Analysten erwarten Kursrückgänge"
+                                )
+                            st.markdown('</div>', unsafe_allow_html=True)
 
 
                 theme_blue = {'fill': 'rgba(59, 130, 246, 0.25)', 'line': '#3b82f6'}
@@ -416,18 +519,55 @@ else:
                     normalize = False
 
                     if not df_2_filtered.empty:
-                        normalize = lab_cols[col_idx].checkbox("📊 Prozentualer Vergleich (%)", value=True)
+                        normalize = lab_cols[col_idx].checkbox(
+                            "📊 Prozentualer Vergleich (%)", 
+                            value=True,
+                            help="Aktiviert den relativen Prozentvergleich, um die Wertentwicklung beider Aktien direkt vergleichen zu können.",
+                            key="normalize_val"
+                        )
                         col_idx += 1
 
-                    show_sma = lab_cols[col_idx].checkbox("🔄 30-Tage Durchschnitt",
-                                                          value=True) if not normalize else False
+                    # Wenn MSCI World oder Prozentvergleich aktiv ist, erzwingen wir prozentuale Skalierung.
+                    is_normalized_mode = normalize
+
+                    # Prüfen wir, ob MSCI Index ausgewählt werden soll (dieser muss später im Code erfasst werden)
+                    # Da show_msci weiter unten definiert ist, lesen wir es aus st.session_state, falls vorhanden:
+                    show_msci_active = st.session_state.get("show_msci_val", False)
+                    if show_msci_active:
+                        is_normalized_mode = True
+
+                    show_sma = lab_cols[col_idx].checkbox(
+                        "🔄 30-Tage Durchschnitt",
+                        value=True if not is_normalized_mode else False,
+                        disabled=is_normalized_mode,
+                        help="Zeigt den gleitenden 30-Tage-Durchschnitt des Aktienkurses. (Deaktiviert bei prozentualem Vergleich).",
+                        key="show_sma_val"
+                    )
                     col_idx += 1
-                    show_bollinger = lab_cols[col_idx].checkbox("🛡️ Bollinger Bänder",
-                                                                value=False) if not normalize else False
+                    
+                    show_bollinger = lab_cols[col_idx].checkbox(
+                        "🛡️ Bollinger Bänder",
+                        value=False if not is_normalized_mode else False,
+                        disabled=is_normalized_mode,
+                        help="Zeigt das statistische Band um den gleitenden Durchschnitt. Hilft bei der Einschätzung der Schwankungsbreite. (Deaktiviert bei prozentualem Vergleich).",
+                        key="show_bollinger_val"
+                    )
                     col_idx += 1
-                    show_drawdown = lab_cols[col_idx].checkbox("📉 Maximaler Verlust", value=False)
+                    
+                    show_drawdown = lab_cols[col_idx].checkbox(
+                        "📉 Maximaler Verlust", 
+                        value=False,
+                        help="Berechnet und zeigt den maximalen prozentualen Kurssturz (Drawdown) im gewählten Zeitraum an.",
+                        key="show_drawdown_val"
+                    )
                     col_idx += 1
-                    show_msci = lab_cols[col_idx].checkbox("🌍 MSCI World Index", value=False)
+                    
+                    show_msci = lab_cols[col_idx].checkbox(
+                        "🌍 MSCI World Index", 
+                        value=False,
+                        help="Vergleicht den Kursverlauf mit dem MSCI World Index (Globale Benchmark für Aktien). Aktiviert automatisch den prozentualen Modus.",
+                        key="show_msci_val"
+                    )
 
                     chart_data = pd.DataFrame()
                     chart_data[name_1] = df_1_filtered['Close']
@@ -444,7 +584,7 @@ else:
                     if show_msci and not df_msci_filtered.empty:
                         chart_data["MSCI World Index (Weltmarkt)"] = df_msci_filtered['Close']
 
-                    if normalize or show_msci:
+                    if is_normalized_mode:
                         chart_data = (chart_data / chart_data.iloc[0] - 1) * 100
                         st.line_chart(chart_data)
                         st.caption(
@@ -558,9 +698,23 @@ else:
 
                     col_inv1, col_inv2 = st.columns(2)
                     with col_inv1:
-                        invest_sum_1 = st.number_input(f"Investitionsbetrag für {name_1} (€):", min_value=1, value=1000, step=100, key="invest_1")
+                        invest_sum_1 = st.number_input(
+                            f"Investitionsbetrag für {name_1} (€):", 
+                            min_value=1, 
+                            value=1000, 
+                            step=100, 
+                            key="invest_1",
+                            help="Gib den Betrag ein, den du zu Beginn des gewählten Zeitraums in diese Aktie investiert hättest."
+                        )
                     with col_inv2:
-                        invest_sum_2 = st.number_input(f"Investitionsbetrag für {name_2} (€):", min_value=1, value=1000, step=100, key="invest_2")
+                        invest_sum_2 = st.number_input(
+                            f"Investitionsbetrag für {name_2} (€):", 
+                            min_value=1, 
+                            value=1000, 
+                            step=100, 
+                            key="invest_2",
+                            help="Gib den Betrag ein, den du zu Beginn des gewählten Zeitraums in die Vergleichsaktie investiert hättest."
+                        )
 
                     start_1, end_1 = df_1_filtered['Close'].iloc[0], df_1_filtered['Close'].iloc[-1]
                     end_val_1 = invest_sum_1 * (end_1 / start_1)
@@ -599,7 +753,13 @@ else:
 
                     col_invest, _ = st.columns([1, 7])
                     with col_invest:
-                        invest_sum = st.number_input("Investitionsbetrag eingeben (€):", min_value=1, value=1000, step=100)
+                        invest_sum = st.number_input(
+                            "Investitionsbetrag eingeben (€):", 
+                            min_value=1, 
+                            value=1000, 
+                            step=100,
+                            help="Gib den Betrag ein, den du zu Beginn des gewählten Zeitraums in die Aktie investiert hättest."
+                        )
 
                     st.info(
                         "💡 Gib in der Seitenleiste ein zweites Vergleichsunternehmen ein, um den interaktiven Portfolio-Mixer freizuschalten.")
