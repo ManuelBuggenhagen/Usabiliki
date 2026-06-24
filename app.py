@@ -1,8 +1,55 @@
-import streamlit as st  # Hier war der Fehler – jetzt korrekt 'as st'
+import streamlit as st 
 import yfinance as yf
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+
+@st.cache_data(ttl="1h")
+def load_stock_data(ticker_symbol):
+    ticker = yf.Ticker(ticker_symbol)
+    df = ticker.history(period="max")
+    try:
+        info = ticker.info
+    except Exception:
+        info = {}
+    return df, info
+
+@st.cache_data(ttl="1h")
+def load_msci_data():
+    try:
+        msci_data = yf.Ticker("URTH")
+        return msci_data.history(period="max")
+    except Exception:
+        return pd.DataFrame()
+
+@st.cache_data(ttl="1h")
+def load_stock_news(ticker_symbol):
+    try:
+        ticker = yf.Ticker(ticker_symbol)
+        return getattr(ticker, 'news', [])
+    except Exception:
+        return []
+
+def filter_data_by_period(df, period):
+    if df.empty or period == "max":
+        return df
+    latest_date = df.index.max()
+    if period == "1mo":
+        start_date = latest_date - pd.DateOffset(months=1)
+    elif period == "3mo":
+        start_date = latest_date - pd.DateOffset(months=3)
+    elif period == "6mo":
+        start_date = latest_date - pd.DateOffset(months=6)
+    elif period == "1y":
+        start_date = latest_date - pd.DateOffset(years=1)
+    elif period == "2y":
+        start_date = latest_date - pd.DateOffset(years=2)
+    elif period == "5y":
+        start_date = latest_date - pd.DateOffset(years=5)
+    else:
+        start_date = df.index.min()
+    return df.loc[start_date:]
+
 
 # --- CONFIGURATION & ACCESSIBLE STYLING ---
 st.set_page_config(
@@ -143,19 +190,6 @@ if compare_stock:
         if selected_option_2:
             ticker_input_2 = STOCK_OPTIONS[selected_option_2]
 
-st.sidebar.markdown("---")
-
-time_period = st.sidebar.selectbox(
-    "Betrachtungszeitraum:",
-    options=["1mo", "3mo", "6mo", "1y", "2y", "5y", "max"],
-    index=3,
-    format_func=lambda x: {
-        "1mo": "📅 1 Monat", "3mo": "📅 3 Monate", "6mo": "📅 6 Monate",
-        "1y": "📅 1 Jahr (Standard)", "2y": "📅 2 Jahre", "5y": "📅 5 Jahre", "max": "⏳ Maximale Historie"
-    }[x],
-    help="Bestimmt das Startdatum der historischen Zeitreihen."
-)
-
 # --- HAUPTFENSTER: PRÜFUNG AUF LEEREN ZUSTAND (EMPTY STATE UX) ---
 if not ticker_input_1:
     st.markdown("### 👋 Willkommen im Dashboard")
@@ -170,19 +204,10 @@ else:
     with st.spinner("🚀 Marktdaten werden aufbereitet..."):
         try:
             # 1. Hauptaktie laden
-            data_1 = yf.Ticker(ticker_input_1)
-            df_1 = data_1.history(period=time_period)
-            try:
-                info_1 = data_1.info
-            except:
-                info_1 = {}
+            df_1, info_1 = load_stock_data(ticker_input_1)
 
             # 2. Benchmark laden
-            try:
-                msci_data = yf.Ticker("URTH")
-                df_msci = msci_data.history(period=time_period)
-            except:
-                df_msci = pd.DataFrame()
+            df_msci = load_msci_data()
 
             # Dynamische Namensauflösung für alle Reiter
             name_1 = info_1.get('longName', selected_option_1.split(" (")[0] if selected_option_1 else ticker_input_1)
@@ -191,12 +216,7 @@ else:
             info_2 = {}
             name_2 = ""
             if ticker_input_2:
-                data_2 = yf.Ticker(ticker_input_2)
-                df_2 = data_2.history(period=time_period)
-                try:
-                    info_2 = data_2.info
-                except:
-                    info_2 = {}
+                df_2, info_2 = load_stock_data(ticker_input_2)
                 name_2 = info_2.get('longName', selected_option_2.split(" (")[0] if selected_option_2 else ticker_input_2)
 
             # --- 1. PROMINENTE KPIs ---
@@ -235,7 +255,7 @@ else:
                 "📰 5. Nachrichten-Feed"
             ])
 
-            report_text = f"=== ANLAGE-REPORT ===\nZeitraum: {time_period}\n\n"
+            report_text = f"=== ANLAGE-REPORT ===\nStand: Aktuell\n\n"
 
             # --- TAB 1: ANLAGE-KOMPASS ---
             with tab1:
@@ -354,11 +374,27 @@ else:
                     mime="text/plain"
                 )
 
+
             # --- TAB 2: KURSVERLAUF & LABOR ---
             with tab2:
                 st.subheader("📈 Interaktiver Kursverlauf")
 
-                if df_2.empty:
+                time_period_chart = st.segmented_control(
+                    "Zeitraum für Kursverlauf:",
+                    options=["1mo", "3mo", "6mo", "1y", "2y", "5y", "max"],
+                    default="1y",
+                    format_func=lambda x: {
+                        "1mo": "📅 1 Monat", "3mo": "📅 3 Monate", "6mo": "📅 6 Monate",
+                        "1y": "📅 1 Jahr", "2y": "📅 2 Jahre", "5y": "📅 5 Jahre", "max": "⏳ Max"
+                    }[x],
+                    key="time_period_chart"
+                )
+
+                df_1_filtered = filter_data_by_period(df_1, time_period_chart)
+                df_2_filtered = filter_data_by_period(df_2, time_period_chart) if not df_2.empty else df_2
+                df_msci_filtered = filter_data_by_period(df_msci, time_period_chart) if not df_msci.empty else df_msci
+
+                if df_2_filtered.empty:
                     chart_view = st.radio(
                         "Visualisierungs-Modus wählen:",
                         options=["Einfache Linie (Einsteiger-UX)",
@@ -373,13 +409,13 @@ else:
                 if chart_view == "Einfache Linie (Einsteiger-UX)":
                     st.markdown("**🔍 Optionale Filter & Zusatzlinien zuschalten:**")
 
-                    num_cols = 5 if not df_2.empty else 4
+                    num_cols = 5 if not df_2_filtered.empty else 4
                     lab_cols = st.columns(num_cols)
 
                     col_idx = 0
                     normalize = False
 
-                    if not df_2.empty:
+                    if not df_2_filtered.empty:
                         normalize = lab_cols[col_idx].checkbox("📊 Prozentualer Vergleich (%)", value=True)
                         col_idx += 1
 
@@ -394,19 +430,19 @@ else:
                     show_msci = lab_cols[col_idx].checkbox("🌍 MSCI World Index", value=False)
 
                     chart_data = pd.DataFrame()
-                    chart_data[name_1] = df_1['Close']
+                    chart_data[name_1] = df_1_filtered['Close']
 
                     if show_sma:
-                        chart_data[f"{name_1} (30-Tage SMA)"] = df_1['Close'].rolling(window=30).mean()
-                    if show_bollinger and len(df_1) >= 20:
-                        sma20 = df_1['Close'].rolling(window=20).mean()
-                        std20 = df_1['Close'].rolling(window=20).std()
+                        chart_data[f"{name_1} (30-Tage SMA)"] = df_1_filtered['Close'].rolling(window=30).mean()
+                    if show_bollinger and len(df_1_filtered) >= 20:
+                        sma20 = df_1_filtered['Close'].rolling(window=20).mean()
+                        std20 = df_1_filtered['Close'].rolling(window=20).std()
                         chart_data[f"{name_1} Oben (Kanal)"] = sma20 + (std20 * 2)
                         chart_data[f"{name_1} Unten (Kanal)"] = sma20 - (std20 * 2)
-                    if not df_2.empty:
-                        chart_data[name_2] = df_2['Close']
-                    if show_msci and not df_msci.empty:
-                        chart_data["MSCI World Index (Weltmarkt)"] = df_msci['Close']
+                    if not df_2_filtered.empty:
+                        chart_data[name_2] = df_2_filtered['Close']
+                    if show_msci and not df_msci_filtered.empty:
+                        chart_data["MSCI World Index (Weltmarkt)"] = df_msci_filtered['Close']
 
                     if normalize or show_msci:
                         chart_data = (chart_data / chart_data.iloc[0] - 1) * 100
@@ -423,31 +459,32 @@ else:
 
 
                         st.info(
-                            f"📉 **Maximaler Verlust im gewählten Zeitraum ({name_1}):** `{calc_max_drawdown(df_1):.2f}%`")
+                            f"📉 **Maximaler Verlust im gewählten Zeitraum ({name_1}):** `{calc_max_drawdown(df_1_filtered):.2f}%`")
 
                 else:
                     st.markdown(f"**Mustererkennung im Kerzenchart von {name_1}:**")
-                    df_1['Body'] = abs(df_1['Open'] - df_1['Close'])
-                    df_1['Range'] = df_1['High'] - df_1['Low']
-                    df_1['Doji'] = (df_1['Body'] <= df_1['Range'] * 0.1) & (df_1['Range'] > 0)
+                    df_1_filtered = df_1_filtered.copy()
+                    df_1_filtered['Body'] = abs(df_1_filtered['Open'] - df_1_filtered['Close'])
+                    df_1_filtered['Range'] = df_1_filtered['High'] - df_1_filtered['Low']
+                    df_1_filtered['Doji'] = (df_1_filtered['Body'] <= df_1_filtered['Range'] * 0.1) & (df_1_filtered['Range'] > 0)
 
-                    df_1['Lower_Shadow'] = np.minimum(df_1['Open'], df_1['Close']) - df_1['Low']
-                    df_1['Upper_Shadow'] = df_1['High'] - np.maximum(df_1['Open'], df_1['Close'])
-                    df_1['Hammer'] = (df_1['Lower_Shadow'] >= df_1['Body'] * 2) & (
-                                df_1['Upper_Shadow'] <= df_1['Body'] * 0.5) & (df_1['Body'] > 0)
+                    df_1_filtered['Lower_Shadow'] = np.minimum(df_1_filtered['Open'], df_1_filtered['Close']) - df_1_filtered['Low']
+                    df_1_filtered['Upper_Shadow'] = df_1_filtered['High'] - np.maximum(df_1_filtered['Open'], df_1_filtered['Close'])
+                    df_1_filtered['Hammer'] = (df_1_filtered['Lower_Shadow'] >= df_1_filtered['Body'] * 2) & (
+                                df_1_filtered['Upper_Shadow'] <= df_1_filtered['Body'] * 0.5) & (df_1_filtered['Body'] > 0)
 
                     fig_candle = go.Figure()
                     fig_candle.add_trace(go.Candlestick(
-                        x=df_1.index, open=df_1['Open'], high=df_1['High'], low=df_1['Low'], close=df_1['Close'],
+                        x=df_1_filtered.index, open=df_1_filtered['Open'], high=df_1_filtered['High'], low=df_1_filtered['Low'], close=df_1_filtered['Close'],
                         name=name_1, increasing_line_color='#2ecc71', decreasing_line_color='#e74c3c'
                     ))
 
-                    doji_days = df_1[df_1['Doji']]
+                    doji_days = df_1_filtered[df_1_filtered['Doji']]
                     if not doji_days.empty:
                         fig_candle.add_trace(go.Scatter(x=doji_days.index, y=doji_days['High'] * 1.02, mode='markers',
                                                         marker=dict(symbol='star', size=10, color='gold'),
                                                         name='Doji (⚡ Unentschlossenheit)'))
-                    hammer_days = df_1[df_1['Hammer']]
+                    hammer_days = df_1_filtered[df_1_filtered['Hammer']]
                     if not hammer_days.empty:
                         fig_candle.add_trace(
                             go.Scatter(x=hammer_days.index, y=hammer_days['Low'] * 0.98, mode='markers',
@@ -463,10 +500,10 @@ else:
                     st.markdown(
                         "Hier findest du die unverarbeiteten mathematischen Tabellenreihen direkt aus der Programmierschnittstelle.")
                     st.write(f"**Tägliche Kursdaten für {name_1}:**")
-                    st.dataframe(df_1, use_container_width=True)
-                    if not df_2.empty:
+                    st.dataframe(df_1_filtered, use_container_width=True)
+                    if not df_2_filtered.empty:
                         st.write(f"**Tägliche Kursdaten für {name_2}:**")
-                        st.dataframe(df_2, use_container_width=True)
+                        st.dataframe(df_2_filtered, use_container_width=True)
 
             # --- TAB 3: FUNDAMENTAL-ANALYSE ---
             with tab3:
@@ -501,7 +538,21 @@ else:
             with tab4:
                 st.subheader("💰 Vermögens-Simulator")
 
-                if not df_2.empty:
+                time_period_rechner = st.segmented_control(
+                    "Simulationszeitraum:",
+                    options=["1mo", "3mo", "6mo", "1y", "2y", "5y", "max"],
+                    default="1y",
+                    format_func=lambda x: {
+                        "1mo": "📅 1 Monat", "3mo": "📅 3 Monate", "6mo": "📅 6 Monate",
+                        "1y": "📅 1 Jahr", "2y": "📅 2 Jahre", "5y": "📅 5 Jahre", "max": "⏳ Max"
+                    }[x],
+                    key="time_period_rechner"
+                )
+
+                df_1_filtered = filter_data_by_period(df_1, time_period_rechner)
+                df_2_filtered = filter_data_by_period(df_2, time_period_rechner) if not df_2.empty else df_2
+
+                if not df_2_filtered.empty:
                     st.markdown(
                         "Vergleiche die Wertentwicklung deiner Investments für beide ausgewählten Aktien über den gewählten Zeitraum.")
 
@@ -511,12 +562,12 @@ else:
                     with col_inv2:
                         invest_sum_2 = st.number_input(f"Investitionsbetrag für {name_2} (€):", min_value=1, value=1000, step=100, key="invest_2")
 
-                    start_1, end_1 = df_1['Close'].iloc[0], df_1['Close'].iloc[-1]
+                    start_1, end_1 = df_1_filtered['Close'].iloc[0], df_1_filtered['Close'].iloc[-1]
                     end_val_1 = invest_sum_1 * (end_1 / start_1)
                     profit_1 = end_val_1 - invest_sum_1
                     perf_percent_1 = (end_val_1 / invest_sum_1 - 1) * 100
 
-                    start_2, end_2 = df_2['Close'].iloc[0], df_2['Close'].iloc[-1]
+                    start_2, end_2 = df_2_filtered['Close'].iloc[0], df_2_filtered['Close'].iloc[-1]
                     end_val_2 = invest_sum_2 * (end_2 / start_2)
                     profit_2 = end_val_2 - invest_sum_2
                     perf_percent_2 = (end_val_2 / invest_sum_2 - 1) * 100
@@ -552,8 +603,8 @@ else:
 
                     st.info(
                         "💡 Gib in der Seitenleiste ein zweites Vergleichsunternehmen ein, um den interaktiven Portfolio-Mixer freizuschalten.")
-                    start_price = df_1['Close'].iloc[0]
-                    end_price = df_1['Close'].iloc[-1]
+                    start_price = df_1_filtered['Close'].iloc[0]
+                    end_price = df_1_filtered['Close'].iloc[-1]
                     end_wert = invest_sum * (end_price / start_price)
                     st.metric(label=f"Endwert deines Investments in {name_1}", value=f"{end_wert:.2f} €",
                               delta=f"{'🔺 Gewinn:' if (end_wert - invest_sum) >= 0 else '🔻 Verlust:'} {(end_wert - invest_sum):.2f} €")
@@ -564,10 +615,9 @@ else:
                 news_cols = st.columns(2 if not df_2.empty else 1)
 
 
-                def zeige_news_clean(data, col, name):
+                def zeige_news_clean(articles, col, name):
                     col.markdown(f"### Schlagzeilen zu **{name}**")
                     try:
-                        articles = getattr(data, 'news', [])
                         if not articles:
                             col.info("Derzeit liegen keine aktuellen Meldungen vor.")
                             return
@@ -585,9 +635,11 @@ else:
                         col.info("Nachrichten-Schnittstelle temporär ausgelastet.")
 
 
-                zeige_news_clean(data_1, news_cols[0], name_1)
+                news_1 = load_stock_news(ticker_input_1)
+                zeige_news_clean(news_1, news_cols[0], name_1)
                 if not df_2.empty:
-                    zeige_news_clean(data_2, news_cols[1], name_2)
+                    news_2 = load_stock_news(ticker_input_2)
+                    zeige_news_clean(news_2, news_cols[1], name_2)
 
         except Exception as e:
             st.error(f"⚠️ Beim Berechnen des Interfaces ist ein Fehler aufgetreten: {e}. Bitte lade die Seite neu.")
