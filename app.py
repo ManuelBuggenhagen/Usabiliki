@@ -65,6 +65,12 @@ def handle_custom_search():
         st.session_state["use_custom_ticker_1"] = True
         st.session_state["custom_ticker_input_1"] = val
 
+def go_home():
+    st.session_state["selected_option_1"] = None
+    st.session_state["use_custom_ticker_1"] = False
+    st.session_state["custom_ticker_input_1"] = ""
+    st.session_state["landing_search_input_val"] = ""
+
 
 # --- CONFIGURATION & ACCESSIBLE STYLING ---
 st.set_page_config(
@@ -154,7 +160,7 @@ st.markdown("""
     .custom-logo-text {
         font-size: 14px;
         font-weight: 600;
-        color: #334155;
+        color: inherit;
     }
 
     /* Style container and make the real streamlit button overlay the custom HTML */
@@ -190,6 +196,31 @@ st.markdown("""
         background-color: rgba(14, 165, 233, 0.08) !important;
         border-color: rgba(14, 165, 233, 0.4) !important;
         box-shadow: 0 4px 6px -1px rgba(14, 165, 233, 0.05) !important;
+    }
+
+    /* Style for home button to look like an H1 header */
+    div[class*="st-key-home-button"] button,
+    div[class*="st-key-home-button"] button * {
+        background: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+        font-size: 3.25rem !important; /* matches large st.title size */
+        line-height: 1.25 !important;
+        font-weight: 800 !important;
+        color: inherit !important;
+        letter-spacing: -0.03em !important;
+        text-align: left !important;
+        box-shadow: none !important;
+    }
+
+    div[class*="st-key-home-button"] button:hover,
+    div[class*="st-key-home-button"] button:hover * {
+        background: transparent !important;
+        color: #0284c7 !important; /* Change color slightly on hover to indicate clickability */
+        box-shadow: none !important;
+        border: none !important;
     }
 
     </style>
@@ -299,9 +330,8 @@ if compare_stock:
         if selected_option_2:
             ticker_input_2 = STOCK_OPTIONS[selected_option_2]
 
-# --- HAUPTFENSTER: PRÜFUNG AUF LEEREN ZUSTAND (EMPTY STATE UX) ---
 if not ticker_input_1:
-    st.title("📊  Stockguide: Dein persöhnliches Aktiendashboard")
+    st.button("📊  Stockguide: Dein persöhnliches Aktiendashboard", key="home-button-landing", on_click=go_home)
     st.caption("Konzipiert für Gelegenheitsanleger zur intuitiven Analyse des Marktes.")
     st.markdown("""
         <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 30px; border-radius: 12px; margin-bottom: 25px; border: 1px solid #334155; color: white;">
@@ -368,7 +398,7 @@ if not ticker_input_1:
     )
 
 else:
-    st.title("📊  Stockguide")
+    st.button("📊  Stockguide", key="home-button-detail", on_click=go_home)
     st.caption("Konzipiert für Gelegenheitsanleger zur intuitiven Analyse des Marktes.")
     # --- DATENABRUF & VERARBEITUNG BEI AKTIVER AUSWAHL ---
     with st.spinner("🚀 Marktdaten werden aufbereitet..."):
@@ -469,23 +499,20 @@ else:
 
             # --- TAB 1: ANLAGE-KOMPASS ---
             with tab1:
-                st.subheader("💡 Intuitive Entscheidungshilfe für Gelegenheitsanleger")
-                st.markdown(
-                    "Dieses Profil übersetzt komplexe Kennzahlen in ein geometrisches Stärkenprofil. Je größer die ausgefüllte Fläche, desto ausgeprägter ist diese Eigenschaft.")
 
                 kompass_cols = st.columns(2 if not df_2.empty else 1)
 
 
                 def rendere_kompass_refactored(name, df, info, col, color_theme):
                     global report_text
-                    col.markdown(f"### **{name} Profil-Analyse**")
+                    col.markdown(f"### Profil-Analyse:   {name}")
                     current_price = df['Close'].iloc[-1]
                     sma_30 = df['Close'].rolling(window=30).mean().iloc[-1] if len(df) >= 30 else current_price
                     rec_key = info.get('recommendationKey', 'none').lower()
 
                     if "buy" in rec_key or current_price > (sma_30 * 1.03):
                         col.success(
-                            "📈 **Kauf-Signal / Nachkaufen** — Das Unternehmen befindet sich in einem stabilen Aufwärtstrend.")
+                            "📈 **Kauf-Signal** — Das Unternehmen befindet sich in einem stabilen Aufwärtstrend.")
                         signal_txt = "Kauf-Signal"
                     elif "sell" in rec_key or current_price < (sma_30 * 0.97):
                         col.error("📉 **Verkaufs-Signal / Erhöhte Vorsicht** — Der aktuelle Trend zeigt nach unten.")
@@ -588,7 +615,7 @@ else:
 
                 st.markdown("---")
                 st.download_button(
-                    label="📄 Diese Kurzanalyse als Text-Spickzettel herunterladen",
+                    label="📄 Diese Kurzanalyse herunterladen",
                     data=report_text,
                     file_name=f"Anlage_Zusammenfassung_{name_1.replace(' ', '_')}.txt",
                     mime="text/plain"
