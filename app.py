@@ -3,6 +3,7 @@ import streamlit as st
 # pyrefly: ignore [missing-import]
 import yfinance as yf
 import pandas as pd
+# pyrefly: ignore [missing-import]
 import numpy as np
 # pyrefly: ignore [missing-import]
 import plotly.graph_objects as go
@@ -124,11 +125,78 @@ st.markdown("""
         font-weight: 700 !important;
     }
 
+    /* CSS for custom logo buttons inside the grid */
+    .custom-logo-btn {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        height: 42px;
+        padding: 0 14px;
+        background-color: rgba(148, 163, 184, 0.06);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 8px;
+        box-sizing: border-box;
+        transition: all 0.2s ease-in-out;
+        pointer-events: none; /* Let clicks pass through to the button behind */
+    }
+
+    .custom-logo-img {
+        height: 24px;
+        width: 24px;
+        object-fit: contain;
+        border-radius: 4px;
+        background-color: white;
+        padding: 1px;
+        border: 1px solid rgba(148, 163, 184, 0.15);
+    }
+
+    .custom-logo-text {
+        font-size: 14px;
+        font-weight: 600;
+        color: #334155;
+    }
+
+    /* Style container and make the real streamlit button overlay the custom HTML */
+    .st-key-popular-stocks-container [data-testid="column"] {
+        position: relative !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    .st-key-popular-stocks-container [data-testid="stButton"] {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 42px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        z-index: 10 !important;
+    }
+
+    .st-key-popular-stocks-container [data-testid="stButton"] button {
+        width: 100% !important;
+        height: 100% !important;
+        opacity: 0 !important; /* Make it completely invisible */
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        cursor: pointer !important;
+    }
+
+    /* Hover effect for custom button when the column is hovered */
+    .st-key-popular-stocks-container [data-testid="column"]:hover .custom-logo-btn {
+        background-color: rgba(14, 165, 233, 0.08) !important;
+        border-color: rgba(14, 165, 233, 0.4) !important;
+        box-shadow: 0 4px 6px -1px rgba(14, 165, 233, 0.05) !important;
+    }
+
     </style>
 """, unsafe_allow_html=True)
 
-st.title("📊  Stockguide: Dein persöhnliches Aktiendashboard")
-st.caption("Konzipiert für Gelegenheitsanleger zur intuitiven Analyse des Marktes.")
+# Dynamische Titel-Definition erfolgt weiter unten im Hauptfenster
+
 
 # --- SIDEBAR (SUCHE MIT LEEREM INITIALZUSTAND) ---
 st.sidebar.header("⚙️ Aktien-Suche")
@@ -233,6 +301,8 @@ if compare_stock:
 
 # --- HAUPTFENSTER: PRÜFUNG AUF LEEREN ZUSTAND (EMPTY STATE UX) ---
 if not ticker_input_1:
+    st.title("📊  Stockguide: Dein persöhnliches Aktiendashboard")
+    st.caption("Konzipiert für Gelegenheitsanleger zur intuitiven Analyse des Marktes.")
     st.markdown("""
         <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 30px; border-radius: 12px; margin-bottom: 25px; border: 1px solid #334155; color: white;">
             <h2 style="color: white; margin-top: 0px;">📊 Willkommen bei Stockguide</h2>
@@ -247,26 +317,42 @@ if not ticker_input_1:
     
     # 2x4 Grid von beliebten Aktien für schnellen Klick
     popular_keys = [
-        ("🍏 Apple (AAPL)", "Apple Inc. (AAPL)"),
-        ("🎮 NVIDIA (NVDA)", "NVIDIA Corporation (NVDA)"),
-        ("💻 Microsoft (MSFT)", "Microsoft Corporation (MSFT)"),
-        ("🚗 Tesla (TSLA)", "Tesla, Inc. (TSLA)"),
-        ("📦 Amazon (AMZN)", "Amazon.com, Inc. (AMZN)"),
-        ("🔍 Google (GOOGL)", "Alphabet Inc. / Google (GOOGL)"),
-        ("👥 Meta (META)", "Meta Platforms, Inc. (META)"),
-        ("💼 SAP SE (SAP)", "SAP SE (SAP)")
+        ("Apple (AAPL)", "Apple Inc. (AAPL)", "apple.com", "AAPL"),
+        ("NVIDIA (NVDA)", "NVIDIA Corporation (NVDA)", "nvidia.com", "NVDA"),
+        ("Microsoft (MSFT)", "Microsoft Corporation (MSFT)", "microsoft.com", "MSFT"),
+        ("Tesla (TSLA)", "Tesla, Inc. (TSLA)", "tesla.com", "TSLA"),
+        ("Amazon (AMZN)", "Amazon.com, Inc. (AMZN)", "amazon.com", "AMZN"),
+        ("Google (GOOGL)", "Alphabet Inc. / Google (GOOGL)", "google.com", "GOOGL"),
+        ("Meta (META)", "Meta Platforms, Inc. (META)", "meta.com", "META"),
+        ("SAP SE (SAP)", "SAP SE (SAP)", "sap.com", "SAP")
     ]
     
-    cols = st.columns(4)
-    for i, (label, select_key) in enumerate(popular_keys):
-        with cols[i % 4]:
-            st.button(
-                label, 
-                use_container_width=True, 
-                key=f"btn_{select_key}",
-                on_click=set_selected_stock,
-                args=(select_key,)
-            )
+    with st.container(key="popular-stocks-container"):
+        cols = st.columns(4)
+        for i, (label, select_key, domain, ticker) in enumerate(popular_keys):
+            with cols[i % 4]:
+                logo_url = f"https://logos.hunter.io/{domain}"
+                fallback_url = f"https://financialmodelingprep.com/image-stock/{ticker}.png"
+                
+                # Der echte Streamlit Button (wird durch CSS unsichtbar gemacht und überlagert das HTML)
+                st.button(
+                    label, 
+                    use_container_width=True, 
+                    key=f"btn_{select_key}",
+                    on_click=set_selected_stock,
+                    args=(select_key,)
+                )
+                
+                # Das visuelle HTML für das Logo im Button
+                st.markdown(
+                    f"""
+                    <div class="custom-logo-btn">
+                        <img src="{logo_url}" onerror="this.onerror=null; this.src='{fallback_url}';" class="custom-logo-img">
+                        <span class="custom-logo-text">{label}</span>
+                    </div>
+                    """, 
+                    unsafe_allow_html=True
+                )
 
     st.markdown("---")
     
@@ -282,6 +368,8 @@ if not ticker_input_1:
     )
 
 else:
+    st.title("📊  Stockguide")
+    st.caption("Konzipiert für Gelegenheitsanleger zur intuitiven Analyse des Marktes.")
     # --- DATENABRUF & VERARBEITUNG BEI AKTIVER AUSWAHL ---
     with st.spinner("🚀 Marktdaten werden aufbereitet..."):
         try:
@@ -313,29 +401,58 @@ else:
                     name_2 = info_2.get('longName', selected_option_2.split(" (")[0] if selected_option_2 else ticker_input_2)
 
             # --- 1. PROMINENTE KPIs ---
-            st.markdown(f"### 🔍 Aktueller Marktstatus (Schlusskurse)")
             kpi_cols = st.columns(2 if not df_2.empty else 1)
 
 
-            def rendere_saubere_kpis(df, name, info, col):
+            def rendere_saubere_kpis(df, name, info, col, ticker):
                 if len(df) >= 2:
                     aktueller_kurs = df['Close'].iloc[-1]
                     vortag_kurs = df['Close'].iloc[-2]
                     differenz = aktueller_kurs - vortag_kurs
                     prozent = (differenz / vortag_kurs) * 100
                     waehrung = info.get('currency', 'USD')
-                    richtungs_text = "🔺 Gewinn:" if differenz >= 0 else "🔻 Verlust:"
+
+                    # Echten Firmennamen und Domain ermitteln
+                    website = info.get('website')
+                    logo_url = None
+                    if website:
+                        from urllib.parse import urlparse
+                        try:
+                            parsed = urlparse(website)
+                            domain = parsed.netloc or parsed.path
+                            if domain.startswith("www."):
+                                domain = domain[4:]
+                            domain = domain.split("/")[0]
+                            logo_url = f"https://logos.hunter.io/{domain}"
+                        except:
+                            pass
+                    
+                    clean_ticker = ticker.split(".")[0].upper()
+                    if not logo_url:
+                        logo_url = f"https://financialmodelingprep.com/image-stock/{clean_ticker}.png"
+                    fallback_url = f"https://financialmodelingprep.com/image-stock/{clean_ticker}.png"
+
+                    # HTML für Header mit Logo
+                    col.markdown(
+                        f"""
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;">
+                            <img src="{logo_url}" onerror="this.onerror=null; this.src='{fallback_url}'; this.onerror=function(){{this.style.display='none';}}" style="height: 38px; width: 38px; object-fit: contain; border-radius: 6px; background-color: white; padding: 3px; border: 1px solid rgba(148, 163, 184, 0.2);">
+                            <h3 style="margin: 0; line-height: 1.2;">{name}</h3>
+                        </div>
+                        """, 
+                        unsafe_allow_html=True
+                    )
 
                     col.metric(
-                        label=name,
+                        label="Aktueller Schlusskurs",
                         value=f"{aktueller_kurs:.2f} {waehrung}",
-                        delta=f"{richtungs_text} {differenz:.2f} {waehrung} ({prozent:.2f}%)"
+                        delta=f"{differenz:+.2f} {waehrung} ({prozent:+.2f}%)"
                     )
 
 
-            rendere_saubere_kpis(df_1, name_1, info_1, kpi_cols[0])
+            rendere_saubere_kpis(df_1, name_1, info_1, kpi_cols[0], ticker_input_1)
             if not df_2.empty:
-                rendere_saubere_kpis(df_2, name_2, info_2, kpi_cols[1])
+                rendere_saubere_kpis(df_2, name_2, info_2, kpi_cols[1], ticker_input_2)
 
             st.markdown("---")
 
