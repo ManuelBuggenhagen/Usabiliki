@@ -13,7 +13,7 @@ def load_stock_data(ticker_symbol):
     except Exception:
         info = {}
     return df, info
-
+#
 @st.cache_data(ttl="1h")
 def load_msci_data():
     try:
