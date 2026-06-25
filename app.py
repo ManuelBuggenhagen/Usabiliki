@@ -57,18 +57,28 @@ def filter_data_by_period(df, period):
 
 def set_selected_stock(select_key):
     st.session_state["selected_option_1"] = select_key
+    st.session_state["use_custom_ticker_1"] = False
+
+def handle_landing_select():
+    """Triggered when the landing-page dropdown changes."""
+    val = st.session_state.get("landing_select_option")
+    if val:
+        st.session_state["selected_option_1"] = val
+        st.session_state["use_custom_ticker_1"] = False
 
 def handle_custom_search():
     val = st.session_state.get("landing_search_input_val", "").upper().strip()
     if val:
-        # Switch selectbox to "Anderer Ticker" mode and prefill the text input
-        st.session_state["selected_option_1"] = "✏️ Anderer Ticker..."
+        st.session_state["use_custom_ticker_1"] = True
         st.session_state["custom_ticker_input_1"] = val
 
 def go_home():
     st.session_state["selected_option_1"] = None
+    st.session_state["use_custom_ticker_1"] = False
+    st.session_state["use_landing_custom"] = False
     st.session_state["custom_ticker_input_1"] = ""
     st.session_state["landing_search_input_val"] = ""
+    st.session_state["landing_select_option"] = None
 
 
 # --- CONFIGURATION & ACCESSIBLE STYLING ---
@@ -245,9 +255,8 @@ st.markdown("""
 # Dynamische Titel-Definition erfolgt weiter unten im Hauptfenster
 
 
-# --- SIDEBAR ---
-st.sidebar.markdown("### 📊 Aktie auswählen")
-st.sidebar.caption("Wähle ein Unternehmen aus der Liste oder gib ein beliebiges Ticker-Kürzel ein (z. B. AAPL, SAP.DE).")
+# --- SIDEBAR (SUCHE MIT LEEREM INITIALZUSTAND) ---
+st.sidebar.header("⚙️ Aktien-Suche")
 
 # Wörterbuch beliebter Aktien
 STOCK_OPTIONS = {
@@ -264,34 +273,59 @@ STOCK_OPTIONS = {
     "SAP SE (SAP)": "SAP",
     "Siemens AG (SIE.DE)": "SIE.DE",
     "Allianz SE (ALV.DE)": "ALV.DE",
-    "✏️ Anderer Ticker...": "CUSTOM"
+    "✨ Eigener Ticker / Freie Eingabe...": "CUSTOM"
 }
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("🎯 Primäraktie")
+
+# Toggle für Eingabe-Modus der Primäraktie
+use_custom_ticker_1 = st.sidebar.toggle(
+    "Freie Ticker-Eingabe",
+    value=st.session_state.get("use_custom_ticker_1", False),
+    help="💡 Schalte um, um entweder eine beliebte Aktie aus der Liste zu wählen (AUS) oder ein beliebiges globales Ticker-Symbol (z. B. 'MSFT' oder 'SAP.DE') einzugeben (AN).",
+    key="use_custom_ticker_1"
+)
 
 ticker_input_1 = None
 selected_option_1 = None
 custom_ticker_input_1 = ""
 
-selected_option_1 = st.sidebar.selectbox(
-    "Primäraktie:",
-    options=list(STOCK_OPTIONS.keys()),
-    index=None,
-    placeholder="Unternehmen wählen oder Ticker eingeben...",
-    help="Wähle ein Unternehmen aus der Liste. Um ein beliebiges Ticker-Kürzel (z. B. 'MSFT' oder 'SAP.DE') einzugeben, wähle '✏️ Anderer Ticker...' am Ende der Liste.",
-    key="selected_option_1"
-)
+if use_custom_ticker_1:
+    # Wenn der Nutzer gerade vom Listen-Modus umschaltet und das Textfeld noch leer ist,
+    # füllen wir es mit dem aktuell ausgewählten Ticker vor – so bleibt die Detailseite sichtbar.
+    _prev_list_selection = st.session_state.get("selected_option_1")
+    _prefill_ticker = ""
+    if not st.session_state.get("custom_ticker_input_1", "") and _prev_list_selection:
+        _resolved = STOCK_OPTIONS.get(_prev_list_selection, "")
+        if _resolved and _resolved != "CUSTOM":
+            _prefill_ticker = _resolved
 
-if selected_option_1 == "✏️ Anderer Ticker...":
     custom_ticker_input_1 = st.sidebar.text_input(
-        "Ticker-Kürzel eingeben:",
-        value=st.session_state.get("custom_ticker_input_1", ""),
+        "✍️ Ticker-Symbol eingeben:",
+        value=st.session_state.get("custom_ticker_input_1", _prefill_ticker),
         max_chars=10,
-        placeholder="z. B. MSFT, SAP.DE, 7203.T",
-        help="Gib das offizielle Börsenkürzel ein. US-Aktien: 'AAPL'. Deutsche Aktien mit '.DE' Suffix: 'SAP.DE'.",
+        help="Gib hier ein beliebiges Ticker-Symbol ein (z. B. 'MSFT' für Microsoft oder 'SAP.DE' für SAP).",
         key="custom_ticker_input_1"
     ).upper().strip()
     ticker_input_1 = custom_ticker_input_1 if custom_ticker_input_1 else None
-elif selected_option_1:
-    ticker_input_1 = STOCK_OPTIONS[selected_option_1]
+else:
+    selected_option_1 = st.sidebar.selectbox(
+        "Top Aktien auf einen Blick:",
+        options=[k for k in STOCK_OPTIONS.keys() if STOCK_OPTIONS[k] != "CUSTOM"],
+        index=None,
+        placeholder="Wähle eine Aktie...",
+        help="Wähle ein beliebtes Unternehmen aus der Liste.",
+        key="selected_option_1"
+    )
+    if selected_option_1:
+        ticker_input_1 = STOCK_OPTIONS[selected_option_1]
+    elif st.session_state.get("custom_ticker_input_1", ""):
+        # Fallback: Nutzer hat gerade vom Freitext-Modus zurückgeschaltet, aber noch
+        # keinen Listeneintrag gewählt → vorherigen Ticker behalten, damit die Detailseite
+        # sichtbar bleibt. go_home() löscht custom_ticker_input_1, daher funktionieren
+        # Home-Button und "Zurück"-Button weiterhin korrekt.
+        ticker_input_1 = st.session_state.get("custom_ticker_input_1")
 
 st.sidebar.markdown("---")
 
@@ -303,44 +337,80 @@ selected_option_2 = None
 custom_ticker_input_2 = ""
 
 if compare_stock:
-    st.sidebar.markdown("**Vergleichsaktie:**")
-    selected_option_2 = st.sidebar.selectbox(
-        "Vergleichsaktie:",
-        options=list(STOCK_OPTIONS.keys()),
-        index=None,
-        placeholder="Vergleichsunternehmen wählen...",
-        help="Wähle ein Unternehmen für den direkten Vergleich. Wähle '✏️ Anderer Ticker...' für ein beliebiges Kürzel.",
-        key="select_comp",
-        label_visibility="collapsed"
+    st.sidebar.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+    st.sidebar.subheader("⚖️ Vergleichsaktie")
+
+    use_custom_ticker_2 = st.sidebar.toggle(
+        "Freie Ticker-Eingabe",
+        value=False,
+        help="💡 Schalte um, um entweder eine beliebte Vergleichsaktie aus der Liste zu wählen (AUS) oder ein beliebiges globales Ticker-Symbol (z. B. 'MSFT' oder 'SAP.DE') einzugeben (AN).",
+        key="toggle_comp"
     )
-    if selected_option_2 == "✏️ Anderer Ticker...":
+
+    if use_custom_ticker_2:
         custom_ticker_input_2 = st.sidebar.text_input(
-            "Vergleichs-Ticker eingeben:",
+            "✍️ Ticker-Symbol eingeben:",
             value="",
             max_chars=10,
-            placeholder="z. B. MSFT, SAP.DE",
-            help="Gib das Börsenkürzel des Vergleichsunternehmens ein.",
+            help="Gib hier ein beliebiges Vergleichs-Ticker-Symbol ein (z. B. 'MSFT' oder 'SAP.DE').",
             key="custom_comp"
         ).upper().strip()
         ticker_input_2 = custom_ticker_input_2 if custom_ticker_input_2 else None
-    elif selected_option_2:
-        ticker_input_2 = STOCK_OPTIONS[selected_option_2]
+    else:
+        selected_option_2 = st.sidebar.selectbox(
+            "Top Aktien auf einen Blick:",
+            options=[k for k in STOCK_OPTIONS.keys() if STOCK_OPTIONS[k] != "CUSTOM"],
+            index=None,
+            placeholder="Wähle eine Vergleichsaktie...",
+            help="Wähle ein beliebtes Vergleichsunternehmen aus der Liste.",
+            key="select_comp"
+        )
+        if selected_option_2:
+            ticker_input_2 = STOCK_OPTIONS[selected_option_2]
+
+# --- Sidebar auf der Startseite ausblenden, auf Detailseite einblenden ---
+if not ticker_input_1:
+    st.markdown("""
+        <style>
+        [data-testid="stSidebar"] { display: none !important; }
+        [data-testid="collapsedControl"] { display: none !important; }
+        </style>
+    """, unsafe_allow_html=True)
+
 
 if not ticker_input_1:
     st.button("📊  Stockguide: Dein persönliches Aktiendashboard", key="home-button-landing", on_click=go_home)
     st.caption("Konzipiert für Gelegenheitsanleger zur intuitiven Analyse des Marktes.")
 
-    # --- PRIMÄRE AKTION ZUERST: Direkte Ticker-Suche (reduziert Gulf of Execution) ---
+    # --- AKTIENAUSWAHL: Toggle-Muster identisch zur Sidebar ---
     st.markdown("### 🔍 Welche Aktie möchtest du analysieren?")
-    st.text_input(
-        "Ticker-Kürzel eingeben:",
-        value="",
-        placeholder="z. B. AAPL, NVDA, SAP.DE, MSFT...",
-        key="landing_search_input_val",
-        on_change=handle_custom_search,
-        label_visibility="collapsed"
+
+    use_landing_custom = st.toggle(
+        "Freie Ticker-Eingabe",
+        value=st.session_state.get("use_landing_custom", False),
+        help="💡 Schalte um, um entweder ein Unternehmen aus der Liste zu wählen (AUS) oder ein beliebiges globales Ticker-Symbol (z. B. 'MSFT' oder 'SAP.DE') einzugeben (AN).",
+        key="use_landing_custom"
     )
-    st.caption("Tipp: US-Aktien einfach als Kürzel (AAPL), deutsche Aktien mit '.DE'-Suffix (SAP.DE).")
+
+    if use_landing_custom:
+        st.text_input(
+            "✍️ Ticker-Symbol eingeben:",
+            value="",
+            placeholder="z. B. AAPL, NVDA, SAP.DE, MSFT...",
+            key="landing_search_input_val",
+            on_change=handle_custom_search,
+            help="Gib das offizielle Börsenkürzel ein (z. B. 'MSFT' für Microsoft oder 'SAP.DE' für SAP)."
+        )
+    else:
+        st.selectbox(
+            "Top Aktien auf einen Blick:",
+            options=[k for k in STOCK_OPTIONS.keys() if STOCK_OPTIONS[k] != "CUSTOM"],
+            index=None,
+            placeholder="Unternehmen wählen...",
+            key="landing_select_option",
+            on_change=handle_landing_select,
+            help="Wähle ein Unternehmen aus der Liste."
+        )
 
     st.markdown("---")
 
@@ -417,8 +487,7 @@ else:
             df_msci = load_msci_data()
 
             # Dynamische Namensauflösung für alle Reiter
-            _sel1_clean = selected_option_1 if selected_option_1 and selected_option_1 != "✏️ Anderer Ticker..." else None
-            name_1 = info_1.get('longName', _sel1_clean.split(" (")[0] if _sel1_clean else ticker_input_1)
+            name_1 = info_1.get('longName', selected_option_1.split(" (")[0] if selected_option_1 else ticker_input_1)
 
             df_2 = pd.DataFrame()
             info_2 = {}
@@ -431,8 +500,7 @@ else:
                     ticker_input_2 = None
                     df_2 = pd.DataFrame()
                 else:
-                    _sel2_clean = selected_option_2 if selected_option_2 and selected_option_2 != "✏️ Anderer Ticker..." else None
-                    name_2 = info_2.get('longName', _sel2_clean.split(" (")[0] if _sel2_clean else ticker_input_2)
+                    name_2 = info_2.get('longName', selected_option_2.split(" (")[0] if selected_option_2 else ticker_input_2)
 
             # --- 1. PROMINENTE KPIs ---
             kpi_cols = st.columns(2 if not df_2.empty else 1)
