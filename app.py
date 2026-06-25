@@ -754,8 +754,16 @@ else:
                 )
 
                 df_1_filtered = filter_data_by_period(df_1, time_period_chart)
+                if df_1_filtered.index.tz is not None:
+                    df_1_filtered.index = df_1_filtered.index.tz_localize(None)
+
                 df_2_filtered = filter_data_by_period(df_2, time_period_chart) if not df_2.empty else df_2
+                if not df_2_filtered.empty and df_2_filtered.index.tz is not None:
+                    df_2_filtered.index = df_2_filtered.index.tz_localize(None)
+
                 df_msci_filtered = filter_data_by_period(df_msci, time_period_chart) if not df_msci.empty else df_msci
+                if not df_msci_filtered.empty and df_msci_filtered.index.tz is not None:
+                    df_msci_filtered.index = df_msci_filtered.index.tz_localize(None)
 
                 if df_2_filtered.empty:
                     chart_view = st.radio(
@@ -795,6 +803,10 @@ else:
                     show_msci_active = st.session_state.get("show_msci_val", False)
                     if show_msci_active:
                         is_normalized_mode = True
+
+                    if is_normalized_mode:
+                        st.session_state["show_sma_val"] = False
+                        st.session_state["show_bollinger_val"] = False
 
                     show_sma = lab_cols[col_idx].checkbox(
                         "🔄 30-Tage Glättungslinie (SMA)",
@@ -847,20 +859,68 @@ else:
 
                     if is_normalized_mode:
                         chart_data = (chart_data / chart_data.iloc[0] - 1) * 100
-                        st.line_chart(chart_data)
+
+                    # Chart-Generierung mit Plotly um Dragging/Panning zu unterbinden
+                    fig_line = go.Figure()
+                    for col_name in chart_data.columns:
+                        fig_line.add_trace(go.Scatter(
+                            x=chart_data.index,
+                            y=chart_data[col_name],
+                            mode='lines',
+                            name=col_name,
+                            line=dict(width=2.5) # etwas dickere Linie für bessere Lesbarkeit
+                        ))
+                    
+                    fig_line.update_layout(
+                        paper_bgcolor="rgba(0,0,0,0)",
+                        plot_bgcolor="rgba(0,0,0,0)",
+                        xaxis=dict(
+                            showgrid=True,
+                            gridcolor="rgba(148, 163, 184, 0.1)",
+                            linecolor="rgba(148, 163, 184, 0.2)"
+                        ),
+                        yaxis=dict(
+                            showgrid=True,
+                            gridcolor="rgba(148, 163, 184, 0.1)",
+                            linecolor="rgba(148, 163, 184, 0.2)",
+                            ticksuffix=" %" if is_normalized_mode else ""
+                        ),
+                        height=400,
+                        margin=dict(l=10, r=10, t=10, b=10),
+                        dragmode=False, # Verhindert jegliches Verschieben/Panning
+                        hovermode='x unified',
+                        showlegend=True,
+                        legend=dict(
+                            orientation="h",
+                            yanchor="bottom",
+                            y=1.02,
+                            xanchor="right",
+                            x=1,
+                            bgcolor="rgba(0,0,0,0)"
+                        )
+                    )
+
+                    st.plotly_chart(fig_line, use_container_width=True, config={'displayModeBar': False})
+
+                    if is_normalized_mode:
                         st.caption(
                             "⚠️ System-Hinweis: Die vertikale Achse zeigt automatisch die **prozentuale Entwicklung (%)** seit dem Startdatum an.")
-                    else:
-                        st.line_chart(chart_data)
 
                     if show_drawdown:
                         def calc_max_drawdown(df):
+                            if df.empty:
+                                return 0.0
                             roll_max = df['Close'].cummax()
                             return ((df['Close'] - roll_max) / roll_max).min() * 100
 
-
-                        st.info(
-                            f"📉 **Maximaler Verlust im gewählten Zeitraum ({name_1}):** `{calc_max_drawdown(df_1_filtered):.2f}%`")
+                        if not df_2_filtered.empty:
+                            col_dd1, col_dd2 = st.columns(2)
+                            with col_dd1:
+                                st.info(f"📉 **Größter Einbruch ({name_1}):** `{calc_max_drawdown(df_1_filtered):.2f}%`")
+                            with col_dd2:
+                                st.info(f"📉 **Größter Einbruch ({name_2}):** `{calc_max_drawdown(df_2_filtered):.2f}%`")
+                        else:
+                            st.info(f"📉 **Größter Einbruch ({name_1}):** `{calc_max_drawdown(df_1_filtered):.2f}%`")
 
                 else:
                     st.markdown(f"**Mustererkennung im Kerzenchart von {name_1}:**")
@@ -1003,7 +1063,7 @@ else:
 
             # --- TAB 4: RENDITE-RECHNER & MIXER ---
             with tab4:
-                st.subheader("💰 Vermögens-Simulator")
+                st.subheader("💰 Rendite-Rechner")
 
                 time_period_rechner = st.segmented_control(
                     "Simulationszeitraum:",
