@@ -57,17 +57,16 @@ def filter_data_by_period(df, period):
 
 def set_selected_stock(select_key):
     st.session_state["selected_option_1"] = select_key
-    st.session_state["use_custom_ticker_1"] = False
 
 def handle_custom_search():
     val = st.session_state.get("landing_search_input_val", "").upper().strip()
     if val:
-        st.session_state["use_custom_ticker_1"] = True
+        # Switch selectbox to "Anderer Ticker" mode and prefill the text input
+        st.session_state["selected_option_1"] = "✏️ Anderer Ticker..."
         st.session_state["custom_ticker_input_1"] = val
 
 def go_home():
     st.session_state["selected_option_1"] = None
-    st.session_state["use_custom_ticker_1"] = False
     st.session_state["custom_ticker_input_1"] = ""
     st.session_state["landing_search_input_val"] = ""
 
@@ -246,8 +245,9 @@ st.markdown("""
 # Dynamische Titel-Definition erfolgt weiter unten im Hauptfenster
 
 
-# --- SIDEBAR (SUCHE MIT LEEREM INITIALZUSTAND) ---
-st.sidebar.header("⚙️ Aktien-Suche")
+# --- SIDEBAR ---
+st.sidebar.markdown("### 📊 Aktie auswählen")
+st.sidebar.caption("Wähle ein Unternehmen aus der Liste oder gib ein beliebiges Ticker-Kürzel ein (z. B. AAPL, SAP.DE).")
 
 # Wörterbuch beliebter Aktien
 STOCK_OPTIONS = {
@@ -264,45 +264,34 @@ STOCK_OPTIONS = {
     "SAP SE (SAP)": "SAP",
     "Siemens AG (SIE.DE)": "SIE.DE",
     "Allianz SE (ALV.DE)": "ALV.DE",
-    "✨ Eigener Ticker / Freie Eingabe...": "CUSTOM"
+    "✏️ Anderer Ticker...": "CUSTOM"
 }
 
-st.sidebar.markdown("---")
-st.sidebar.subheader("🎯 Primäraktie")
-
-# Toggle für Eingabe-Modus der Primäraktie
-use_custom_ticker_1 = st.sidebar.toggle(
-    "Freie Ticker-Eingabe",
-    value=st.session_state.get("use_custom_ticker_1", False),
-    help="💡 Schalte um, um entweder eine beliebte Aktie aus der Liste zu wählen (AUS) oder ein beliebiges globales Ticker-Symbol (z. B. 'MSFT' oder 'SAP.DE') einzugeben (AN).",
-    key="use_custom_ticker_1"
-)
-#changed stuff here
-#and here as well
 ticker_input_1 = None
 selected_option_1 = None
 custom_ticker_input_1 = ""
 
-if use_custom_ticker_1:
+selected_option_1 = st.sidebar.selectbox(
+    "Primäraktie:",
+    options=list(STOCK_OPTIONS.keys()),
+    index=None,
+    placeholder="Unternehmen wählen oder Ticker eingeben...",
+    help="Wähle ein Unternehmen aus der Liste. Um ein beliebiges Ticker-Kürzel (z. B. 'MSFT' oder 'SAP.DE') einzugeben, wähle '✏️ Anderer Ticker...' am Ende der Liste.",
+    key="selected_option_1"
+)
+
+if selected_option_1 == "✏️ Anderer Ticker...":
     custom_ticker_input_1 = st.sidebar.text_input(
-        "✍️ Ticker-Symbol eingeben:",
+        "Ticker-Kürzel eingeben:",
         value=st.session_state.get("custom_ticker_input_1", ""),
         max_chars=10,
-        help="Gib hier ein beliebiges Ticker-Symbol ein (z. B. 'MSFT' für Microsoft oder 'SAP.DE' für SAP).",
+        placeholder="z. B. MSFT, SAP.DE, 7203.T",
+        help="Gib das offizielle Börsenkürzel ein. US-Aktien: 'AAPL'. Deutsche Aktien mit '.DE' Suffix: 'SAP.DE'.",
         key="custom_ticker_input_1"
     ).upper().strip()
     ticker_input_1 = custom_ticker_input_1 if custom_ticker_input_1 else None
-else:
-    selected_option_1 = st.sidebar.selectbox(
-        "1. Top Aktien auf einen Blick:",
-        options=[k for k in STOCK_OPTIONS.keys() if STOCK_OPTIONS[k] != "CUSTOM"],
-        index=None,
-        placeholder="Wähle eine Aktie...",
-        help="Wähle ein beliebtes Unternehmen aus der Liste.",
-        key="selected_option_1"
-    )
-    if selected_option_1:
-        ticker_input_1 = STOCK_OPTIONS[selected_option_1]
+elif selected_option_1:
+    ticker_input_1 = STOCK_OPTIONS[selected_option_1]
 
 st.sidebar.markdown("---")
 
@@ -314,54 +303,49 @@ selected_option_2 = None
 custom_ticker_input_2 = ""
 
 if compare_stock:
-    # Abstand vergrößern und Überschrift anzeigen
-    st.sidebar.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-    st.sidebar.subheader("⚖️ Vergleichsaktie")
-
-    # Toggle für Eingabe-Modus der Vergleichsaktie
-    use_custom_ticker_2 = st.sidebar.toggle(
-        "Freie Ticker-Eingabe",
-        value=False,
-        help="💡 Schalte um, um entweder eine beliebte Vergleichsaktie aus der Liste zu wählen (AUS) oder ein beliebiges globales Ticker-Symbol (z. B. 'MSFT' oder 'SAP.DE') einzugeben (AN).",
-        key="toggle_comp"
+    st.sidebar.markdown("**Vergleichsaktie:**")
+    selected_option_2 = st.sidebar.selectbox(
+        "Vergleichsaktie:",
+        options=list(STOCK_OPTIONS.keys()),
+        index=None,
+        placeholder="Vergleichsunternehmen wählen...",
+        help="Wähle ein Unternehmen für den direkten Vergleich. Wähle '✏️ Anderer Ticker...' für ein beliebiges Kürzel.",
+        key="select_comp",
+        label_visibility="collapsed"
     )
-
-    if use_custom_ticker_2:
+    if selected_option_2 == "✏️ Anderer Ticker...":
         custom_ticker_input_2 = st.sidebar.text_input(
-            "✍️ Ticker-Symbol eingeben:",
+            "Vergleichs-Ticker eingeben:",
             value="",
             max_chars=10,
-            help="Gib hier ein beliebiges Vergleichs-Ticker-Symbol ein (z. B. 'MSFT' oder 'SAP.DE').",
+            placeholder="z. B. MSFT, SAP.DE",
+            help="Gib das Börsenkürzel des Vergleichsunternehmens ein.",
             key="custom_comp"
         ).upper().strip()
         ticker_input_2 = custom_ticker_input_2 if custom_ticker_input_2 else None
-    else:
-        selected_option_2 = st.sidebar.selectbox(
-            "2. Top Aktien auf einen Blick:",
-            options=[k for k in STOCK_OPTIONS.keys() if STOCK_OPTIONS[k] != "CUSTOM"],
-            index=None,
-            placeholder="Wähle eine Vergleichsaktie...",
-            help="Wähle ein beliebtes Vergleichsunternehmen aus der Liste.",
-            key="select_comp"
-        )
-        if selected_option_2:
-            ticker_input_2 = STOCK_OPTIONS[selected_option_2]
+    elif selected_option_2:
+        ticker_input_2 = STOCK_OPTIONS[selected_option_2]
 
 if not ticker_input_1:
-    st.button("📊  Stockguide: Dein persöhnliches Aktiendashboard", key="home-button-landing", on_click=go_home)
+    st.button("📊  Stockguide: Dein persönliches Aktiendashboard", key="home-button-landing", on_click=go_home)
     st.caption("Konzipiert für Gelegenheitsanleger zur intuitiven Analyse des Marktes.")
-    st.markdown("""
-        <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 30px; border-radius: 12px; margin-top: 10px; margin-bottom: 25px; border: 1px solid #334155; color: white;">
-            <h3 style="color: white; margin-top: 0px; margin-bottom: 15px; font-size: 20px;">Was wir dir bieten:</h3>
-            <ul style="font-size: 16px; color: #cbd5e1; line-height: 1.6; margin-bottom: 0px; padding-left: 20px;">
-                <li style="margin-bottom: 10px;"><strong>Schnelle Marktanalyse:</strong> Komplexe Börsendaten, verständlich aufbereitet.</li>
-                <li style="margin-bottom: 10px;"><strong>Klarheit statt Chaos:</strong> Ein intuitives Design, das speziell für Gelegenheitsanleger konzipiert wurde.</li>
-                <li style="margin-bottom: 0px;"><strong>Alles auf einen Blick:</strong> Die wichtigsten Finanzdaten übersichtlich in deinem persönlichen Dashboard.</li>
-            </ul>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("### 🎯 Schnelleinstieg: Wähle eine beliebte Aktie")
+
+    # --- PRIMÄRE AKTION ZUERST: Direkte Ticker-Suche (reduziert Gulf of Execution) ---
+    st.markdown("### 🔍 Welche Aktie möchtest du analysieren?")
+    st.text_input(
+        "Ticker-Kürzel eingeben:",
+        value="",
+        placeholder="z. B. AAPL, NVDA, SAP.DE, MSFT...",
+        key="landing_search_input_val",
+        on_change=handle_custom_search,
+        label_visibility="collapsed"
+    )
+    st.caption("Tipp: US-Aktien einfach als Kürzel (AAPL), deutsche Aktien mit '.DE'-Suffix (SAP.DE).")
+
+    st.markdown("---")
+
+    # --- SCHNELLEINSTIEG: Beliebte Aktien als Logo-Grid ---
+    st.markdown("### 🎯 Oder wähle direkt eine beliebte Aktie:")
     st.markdown("Klicke auf eines der Unternehmen, um die Analyse sofort zu starten:")
     
     # 2x4 Grid von beliebten Aktien für schnellen Klick
@@ -404,17 +388,14 @@ if not ticker_input_1:
                 )
 
     st.markdown("---")
-    
-    # Zusätzliche freie Suche auf der Landingpage zur Verringerung der Gulf of Execution
-    st.markdown("### ✍️ Oder suche direkt nach einem Ticker-Symbol")
-    
-    st.text_input(
-        "Gib ein globales Kürzel ein (z. B. 'MSFT' für Microsoft, 'SIE.DE' für Siemens):",
-        value="",
-        placeholder="z. B. AAPL, SAP.DE, MSFT...",
-        key="landing_search_input_val",
-        on_change=handle_custom_search
-    )
+
+    # --- INFO-KARTE: Ins Expander verschoben um Hauptaktion nicht zu konkurrieren ---
+    with st.expander("ℹ️ Was bietet dir Stockguide?"):
+        st.markdown("""
+        - **Schnelle Marktanalyse:** Komplexe Börsendaten, verständlich aufbereitet für Gelegenheitsanleger.
+        - **Klarheit statt Chaos:** Ein intuitives Design mit einfach verständlichen Erklärungen zu jedem Begriff.
+        - **Alles auf einen Blick:** Kursverlauf, Fundamental-Kennzahlen, Rendite-Simulation und Nachrichten-Feed.
+        """)
 
 else:
     st.button("📊  Stockguide", key="home-button-detail", on_click=go_home)
@@ -429,13 +410,15 @@ else:
             # Validierung der Hauptaktie zur Fehlervermeidung (Postel's Law / Nielsen Heuristik #5)
             if df_1.empty:
                 st.error(f"⚠️ **Das Ticker-Symbol '{ticker_input_1}' konnte nicht geladen werden.**\n\nBitte überprüfe die Schreibweise in der Seitenleiste (z. B. 'AAPL' für Apple, 'NVDA' für NVIDIA oder 'SAP.DE' für SAP SE) und stelle sicher, dass eine Internetverbindung besteht.")
+                st.button("🏠 Zurück zur Startseite", on_click=go_home, type="primary")
                 st.stop()
 
             # 2. Benchmark laden
             df_msci = load_msci_data()
 
             # Dynamische Namensauflösung für alle Reiter
-            name_1 = info_1.get('longName', selected_option_1.split(" (")[0] if selected_option_1 else ticker_input_1)
+            _sel1_clean = selected_option_1 if selected_option_1 and selected_option_1 != "✏️ Anderer Ticker..." else None
+            name_1 = info_1.get('longName', _sel1_clean.split(" (")[0] if _sel1_clean else ticker_input_1)
 
             df_2 = pd.DataFrame()
             info_2 = {}
@@ -448,7 +431,8 @@ else:
                     ticker_input_2 = None
                     df_2 = pd.DataFrame()
                 else:
-                    name_2 = info_2.get('longName', selected_option_2.split(" (")[0] if selected_option_2 else ticker_input_2)
+                    _sel2_clean = selected_option_2 if selected_option_2 and selected_option_2 != "✏️ Anderer Ticker..." else None
+                    name_2 = info_2.get('longName', _sel2_clean.split(" (")[0] if _sel2_clean else ticker_input_2)
 
             # --- 1. PROMINENTE KPIs ---
             kpi_cols = st.columns(2 if not df_2.empty else 1)
@@ -508,11 +492,11 @@ else:
 
             # --- 2. TABS ---
             tab1, tab2, tab3, tab4, tab5 = st.tabs([
-                "🔮 1. Anlage-Kompass",
-                "📈 2. Kursverlauf",
-                "🔬 3. Fundamental-Analyse",
-                "💰 4. Rendite-Rechner",
-                "📰 5. Nachrichten-Feed"
+                "🔮 Anlage-Kompass",
+                "📈 Kursverlauf",
+                "🔬 Fundamental-Analyse",
+                "💰 Rendite-Rechner",
+                "📰 Nachrichten"
             ])
 
             report_text = f"=== ANLAGE-REPORT ===\nStand: Aktuell\n\n"
@@ -556,8 +540,8 @@ else:
                     trend_score = 5 if current_price > (sma_30 * 1.06) else (
                         4 if current_price > sma_30 else (3 if current_price > (sma_30 * 0.94) else 1))
 
-                    categories = ['KGV (Bewertung)', 'Dividendenrendite', 'Kurs-Stabilität',
-                                  'Analysten-Potenzial', 'Trend-Stärke']
+                    categories = ['Bewertung (KGV)', 'Dividendenrendite', 'Stabilität (Beta)',
+                                  'Kurspotenzial', 'Aktueller Trend']
                     values = [kgv_score, div_score, beta_score, pot_score, trend_score]
                     categories += [categories[0]]
                     values += [values[0]]
@@ -585,8 +569,13 @@ else:
                     )
                     col.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
                     col.markdown("""
-                        <div style="font-size: 13px; color: #64748b; text-align: center; margin-top: -10px; margin-bottom: 20px;">
-                            <i>Skala: 1 = Gering/Ungünstig | 3 = Neutral/Mittel | 5 = Hoch/Günstig</i>
+                        <div style="font-size: 12px; color: #64748b; background: rgba(30,41,59,0.5); border: 1px solid rgba(71,85,105,0.3); border-radius: 8px; padding: 10px 14px; margin-top: -8px; margin-bottom: 16px; line-height: 1.7;">
+                            <b style="color:#94a3b8;">So lies du das Diagramm:</b><br>
+                            🟦 <b>Bewertung (KGV):</b> Ist die Aktie günstig bewertet? (Hoch = günstig)<br>
+                            🟦 <b>Dividendenrendite:</b> Schüttet das Unternehmen regelmäßig Gewinne aus? (Hoch = mehr Ausschüttung)<br>
+                            🟦 <b>Stabilität (Beta):</b> Schwankt der Kurs wenig im Vergleich zum Markt? (Hoch = stabil)<br>
+                            🟦 <b>Kurspotenzial:</b> Erwarten Analysten Kurssteigerungen? (Hoch = mehr Potenzial)<br>
+                            🟦 <b>Aktueller Trend:</b> Liegt der Kurs über seinem 30-Tage-Durchschnitt? (Hoch = positiver Trend)
                         </div>
                     """, unsafe_allow_html=True)
 
@@ -677,16 +666,16 @@ else:
                 if df_2_filtered.empty:
                     chart_view = st.radio(
                         "Visualisierungs-Modus wählen:",
-                        options=["Einfache Linie (Einsteiger-UX)",
-                                 "Kerzenchart / Candlestick (Fortgeschrittene Analyse)"],
+                        options=["Liniendiagramm",
+                                 "Kerzenchart / Candlestick"],
                         horizontal=True
                     )
                 else:
-                    chart_view = "Einfache Linie (Einsteiger-UX)"
+                    chart_view = "Liniendiagramm"
                     st.info(
                         "ℹ️ Bei aktiven Vergleichen ist der Linienmodus fest vorgegeben, um eine optische Überlagerung zu verhindern.")
 
-                if chart_view == "Einfache Linie (Einsteiger-UX)":
+                if chart_view == "Liniendiagramm":
                     st.markdown("**🔍 Optionale Filter & Zusatzlinien zuschalten:**")
 
                     num_cols = 5 if not df_2_filtered.empty else 4
@@ -714,27 +703,27 @@ else:
                         is_normalized_mode = True
 
                     show_sma = lab_cols[col_idx].checkbox(
-                        "🔄 30-Tage Durchschnitt",
+                        "🔄 30-Tage Glättungslinie (SMA)",
                         value=True if not is_normalized_mode else False,
                         disabled=is_normalized_mode,
-                        help="Zeigt den gleitenden 30-Tage-Durchschnitt des Aktienkurses. (Deaktiviert bei prozentualem Vergleich).",
+                        help="Zeigt den gleitenden 30-Tage-Durchschnitt des Aktienkurses. Glättet kurzfristige Schwankungen und macht den langfristigen Trend sichtbar. (Deaktiviert bei prozentualem Vergleich).",
                         key="show_sma_val"
                     )
                     col_idx += 1
                     
                     show_bollinger = lab_cols[col_idx].checkbox(
-                        "🛡️ Bollinger Bänder",
+                        "🛡️ Schwankungskanal (Bollinger)",
                         value=False if not is_normalized_mode else False,
                         disabled=is_normalized_mode,
-                        help="Zeigt das statistische Band um den gleitenden Durchschnitt. Hilft bei der Einschätzung der Schwankungsbreite. (Deaktiviert bei prozentualem Vergleich).",
+                        help="Zeigt ein statistisches Band um den Durchschnittskurs. Wenn der Kurs das Band berührt oder verlässt, kann das auf eine starke Bewegung hindeuten. (Deaktiviert bei prozentualem Vergleich).",
                         key="show_bollinger_val"
                     )
                     col_idx += 1
                     
                     show_drawdown = lab_cols[col_idx].checkbox(
-                        "📉 Maximaler Verlust", 
+                        "📉 Größter Einbruch (Drawdown)", 
                         value=False,
-                        help="Berechnet und zeigt den maximalen prozentualen Kurssturz (Drawdown) im gewählten Zeitraum an.",
+                        help="Berechnet den maximalen prozentualen Kurssturz vom Höchststand bis zum Tiefststand im gewählten Zeitraum. Ein Maß für das Verlustrisiko.",
                         key="show_drawdown_val"
                     )
                     col_idx += 1
@@ -742,9 +731,10 @@ else:
                     show_msci = lab_cols[col_idx].checkbox(
                         "🌍 MSCI World Index", 
                         value=False,
-                        help="Vergleicht den Kursverlauf mit dem MSCI World Index (Globale Benchmark für Aktien). Aktiviert automatisch den prozentualen Modus.",
+                        help="Vergleicht den Kursverlauf mit dem MSCI World Index – einer globalen Benchmark, die ~1.500 Unternehmen aus 23 Ländern abbildet. Aktiviert automatisch den prozentualen Modus.",
                         key="show_msci_val"
                     )
+                    st.caption("💡 Tipp: Die Glättungslinie zeigt den langfristigen Trend, der Schwankungskanal zeigt die typische Kursbandbreite.")
 
                     chart_data = pd.DataFrame()
                     chart_data[name_1] = df_1_filtered['Close']
@@ -824,27 +814,93 @@ else:
 
             # --- TAB 3: FUNDAMENTAL-ANALYSE ---
             with tab3:
-                st.subheader("🔬 Fundamentale Firmenkennzahlen")
+                st.subheader("🏢 Firmenprofil & Kennzahlen")
                 st.markdown(
-                    "Fahre mit der Maus über die kleinen Fragezeichen, um eine einfache Erklärung der Fachbegriffe zu erhalten.")
+                    "Fahre mit der Maus über die **?**-Symbole, um eine einfache Erklärung der Fachbegriffe zu erhalten.")
                 f_cols = st.columns(2 if not df_2.empty else 1)
 
 
                 def zeige_fundamentals_accessible(info, col, name):
                     col.markdown(f"### **{name}**")
-                    kgv = info.get('trailingPE')
-                    kgv_txt = f"{kgv:.2f}" if kgv else "Nicht verfügbar"
-                    col.metric(label="KGV (Kurs-Gewinn-Verhältnis)", value=kgv_txt,
-                               help="Das KGV sagt aus, wie viele Jahre es theoretisch dauert, bis das Unternehmen seinen eigenen Kaufpreis durch Gewinne wieder eingespielt hat. Ein Wert unter 20 gilt oft als günstig.")
 
+                    # Sektor / Branche (Kontext: Was macht das Unternehmen?)
+                    sector = info.get('sector', '')
+                    industry = info.get('industry', '')
+                    if sector or industry:
+                        col.caption(f"🏭 {sector}{' · ' + industry if industry else ''}")
+
+                    col.markdown("---")
+
+                    # Analystenempfehlung (klarste Orientierungshilfe für Gelegenheitsanleger)
+                    rec = info.get('recommendationKey', '')
+                    rec_map = {
+                        'strong_buy': '🟢 Starker Kauf',
+                        'buy':        '🟢 Kauf',
+                        'hold':       '🟡 Halten',
+                        'underperform': '🔴 Unterperformance',
+                        'sell':       '🔴 Verkaufen',
+                        'strong_sell':'🔴 Starker Verkauf',
+                    }
+                    rec_txt = rec_map.get(rec.lower(), '— Keine Empfehlung verfügbar') if rec else '— Keine Empfehlung verfügbar'
+                    col.metric(
+                        label="Analystenempfehlung",
+                        value=rec_txt,
+                        help="Die gebündelte Einschätzung professioneller Finanzanalysten: 'Kauf' = Analysten erwarten Kursanstieg, 'Halten' = Status quo beibehalten, 'Verkaufen' = Analysten erwarten Kursrückgang."
+                    )
+
+                    col.markdown("&nbsp;", unsafe_allow_html=True)
+                    m1, m2 = col.columns(2)
+
+                    # KGV
+                    kgv = info.get('trailingPE')
+                    kgv_txt = f"{kgv:.1f}x" if kgv else "N/A"
+                    m1.metric(label="KGV (Bewertung)", value=kgv_txt,
+                               help="Kurs-Gewinn-Verhältnis: Wie teuer ist die Aktie im Verhältnis zum Gewinn des Unternehmens? Unter 15 gilt oft als günstig, über 40 als teuer.")
+
+                    # Dividende
                     div = info.get('dividendYield')
                     div_txt = f"{(div * 100):.2f} %" if div else "0.00 %"
-                    col.metric(label="Dividendenrendite (Zinsertrag)", value=div_txt,
-                               help="Die jährliche 'Bonus-Ausschüttung' der Firma an ihre Aktionäre, umgerechnet in Prozent des aktuellen Aktienkurses.")
+                    m2.metric(label="Dividendenrendite", value=div_txt,
+                               help="Die jährliche Gewinnausschüttung der Firma an ihre Aktionäre, in Prozent des aktuellen Aktienkurses. Höhere Werte bedeuten mehr passives Einkommen.")
 
+                    m3, m4 = col.columns(2)
+
+                    # EPS (Gewinn je Aktie)
+                    eps = info.get('trailingEps')
+                    eps_txt = f"{eps:.2f} {info.get('currency', 'USD')}" if eps else "N/A"
+                    m3.metric(label="Gewinn je Aktie (EPS)", value=eps_txt,
+                               help="Earnings Per Share: Wie viel Gewinn hat das Unternehmen pro ausgegebener Aktie erzielt? Ein positiver Wert bedeutet Gewinn, ein negativer Verlust.")
+
+                    # Börsenwert
                     cap = info.get('marketCap')
-                    cap_txt = f"{cap / 1e9:.2f} Mrd. {info.get('currency', 'USD')}" if cap else "Unbekannt"
-                    col.write(f"**Börsenwert des gesamten Unternehmens (Market Cap):** {cap_txt}")
+                    if cap:
+                        if cap >= 1e12:
+                            cap_txt = f"{cap / 1e12:.2f} Bio."
+                        else:
+                            cap_txt = f"{cap / 1e9:.2f} Mrd."
+                        cap_txt += f" {info.get('currency', 'USD')}"
+                    else:
+                        cap_txt = "Unbekannt"
+                    m4.metric(label="Börsenwert (Market Cap)", value=cap_txt,
+                               help="Der Gesamtwert aller ausgegebenen Aktien des Unternehmens. Grob: unter 2 Mrd. = Small Cap, 2–10 Mrd. = Mid Cap, über 10 Mrd. = Large Cap.")
+
+                    m5, m6 = col.columns(2)
+
+                    # 52-Wochen-Hoch / -Tief
+                    high_52 = info.get('fiftyTwoWeekHigh')
+                    low_52 = info.get('fiftyTwoWeekLow')
+                    currency = info.get('currency', 'USD')
+                    if high_52 and low_52:
+                        m5.metric(label="52W-Hoch", value=f"{high_52:.2f} {currency}",
+                                   help="Der höchste Aktienkurs der letzten 52 Wochen (1 Jahr). Liegt der aktuelle Kurs nah am Hoch, ist die Aktie teuer; nah am Tief, möglicherweise günstig.")
+                        m6.metric(label="52W-Tief", value=f"{low_52:.2f} {currency}",
+                                   help="Der niedrigste Aktienkurs der letzten 52 Wochen (1 Jahr).")
+
+                    # Kurs-Buchwert-Verhältnis (P/B)
+                    pb = info.get('priceToBook')
+                    pb_txt = f"{pb:.2f}x" if pb else "N/A"
+                    col.metric(label="Kurs-Buchwert (P/B)", value=pb_txt,
+                               help="Vergleicht den Börsenkurs mit dem Buchwert (dem bilanziellen Substanzwert) des Unternehmens. Ein Wert unter 1,0 bedeutet, die Aktie ist rechnerisch 'unter Substanzwert'.")
 
 
                 zeige_fundamentals_accessible(info_1, f_cols[0], name_1)
@@ -924,6 +980,15 @@ else:
                         st.warning(f"📉 **{name_1}** hat in diesem Zeitraum um **{abs(perf_diff):.2f} %** schlechter abgeschnitten als **{name_2}**.")
                     else:
                         st.info(f"⚖️ Beide Aktien haben in diesem Zeitraum exakt die gleiche Wertentwicklung erzielt ({perf_percent_1:.2f} %).")
+
+                    # Trajectory chart: Beide Depotwerte über Zeit
+                    traj = pd.DataFrame({
+                        f"Depot {name_1} (€)": (df_1_filtered['Close'] / df_1_filtered['Close'].iloc[0]) * invest_sum_1,
+                        f"Depot {name_2} (€)": (df_2_filtered['Close'] / df_2_filtered['Close'].iloc[0]) * invest_sum_2,
+                    })
+                    st.line_chart(traj)
+                    start_date_str = df_1_filtered.index[0].strftime("%d. %b %Y")
+                    st.caption(f"📅 Simulation basiert auf historischen Kursdaten ab {start_date_str}. Vergangene Wertentwicklungen sind kein Indikator für zukünftige Ergebnisse.")
                 else:
                     st.markdown(
                         "Berechne die Wertentwicklung deines Investments über den ausgewählten Zeitraum.")
@@ -946,6 +1011,13 @@ else:
                     st.metric(label=f"Endwert deines Investments in {name_1}", value=f"{end_wert:.2f} €",
                               delta=f"{'🔺 Gewinn:' if (end_wert - invest_sum) >= 0 else '🔻 Verlust:'} {(end_wert - invest_sum):.2f} €")
 
+                    # Trajectory chart: Simulierter Depotwert über Zeit
+                    portfolio_series = (df_1_filtered['Close'] / start_price) * invest_sum
+                    portfolio_series.name = f"Depotwert {name_1} (€)"
+                    st.line_chart(portfolio_series)
+                    start_date_str = df_1_filtered.index[0].strftime("%d. %b %Y")
+                    st.caption(f"📅 Simulation basiert auf historischen Kursdaten ab {start_date_str}. Vergangene Wertentwicklungen sind kein Indikator für zukünftige Ergebnisse.")
+
             # --- TAB 5: NEWS & SCHLAGZEILEN ---
             with tab5:
                 st.subheader("📰 Aktuelle Berichte & Markttreiber")
@@ -958,15 +1030,41 @@ else:
                         if not articles:
                             col.info("Derzeit liegen keine aktuellen Meldungen vor.")
                             return
-                        for art in articles[:4]:
+                        from datetime import datetime, timezone
+                        now = datetime.now(timezone.utc)
+                        for art in articles[:5]:
                             content_block = art.get('content', {})
                             title = content_block.get('title', art.get('title', 'Kein Titel verfügbar'))
                             link = content_block.get('canonicalUrl', {}).get('url', art.get('link', '#'))
                             publisher = content_block.get('provider', {}).get('displayName',
                                                                               art.get('publisher', 'Unbekannt'))
 
+                            # Veröffentlichungsdatum ermitteln und anzeigen
+                            pub_ts = content_block.get('pubDate') or art.get('providerPublishTime')
+                            date_str = ""
+                            if pub_ts:
+                                try:
+                                    if isinstance(pub_ts, (int, float)):
+                                        pub_dt = datetime.fromtimestamp(pub_ts, tz=timezone.utc)
+                                    else:
+                                        pub_dt = datetime.fromisoformat(str(pub_ts).replace("Z", "+00:00"))
+                                    diff = now - pub_dt
+                                    hours = int(diff.total_seconds() // 3600)
+                                    if hours < 1:
+                                        date_str = "vor weniger als einer Stunde"
+                                    elif hours < 24:
+                                        date_str = f"vor {hours} Stunde{'n' if hours > 1 else ''}"
+                                    else:
+                                        days = diff.days
+                                        date_str = f"vor {days} Tag{'en' if days > 1 else ''}" if days < 7 else pub_dt.strftime("%d. %b %Y")
+                                except Exception:
+                                    date_str = ""
+
                             col.markdown(f"🔗 **[{title}]({link})**")
-                            col.caption(f"Quelle: {publisher}")
+                            meta = f"Quelle: {publisher}"
+                            if date_str:
+                                meta += f"  ·  🕐 {date_str}"
+                            col.caption(meta)
                             col.markdown("---")
                     except:
                         col.info("Nachrichten-Schnittstelle temporär ausgelastet.")
