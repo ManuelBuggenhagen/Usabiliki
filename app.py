@@ -101,12 +101,27 @@ st.markdown("""
         font-weight: 600 !important;
     }
 
-    /* Farbcodierung für spezielle Metriken (Verhindert vertikale Offsets in Spalten) */
-    div.third-metric-green div[data-testid="column"]:nth-of-type(3) [data-testid="stMetricValue"] {
+    /* Farbcodierung für das Analysten-Potenzial (dritte Metrik) über Sibling-Selektoren */
+    [data-testid="element-container"]:has(.third-metric-green) ~ [data-testid="element-container"] [data-testid="column"]:nth-of-type(3) [data-testid="stMetricValue"] {
         color: #2ecc71 !important;
     }
-    div.third-metric-red div[data-testid="column"]:nth-of-type(3) [data-testid="stMetricValue"] {
+    [data-testid="element-container"]:has(.third-metric-red) ~ [data-testid="element-container"] [data-testid="column"]:nth-of-type(3) [data-testid="stMetricValue"] {
         color: #e74c3c !important;
+    }
+
+    /* Optimierte Kompakt-Styles für Details im Stärkenprofil (innerhalb von Expandern) */
+    [data-testid="stExpander"] [data-testid="stMetric"] {
+        padding: 6px 8px !important;
+    }
+    [data-testid="stExpander"] [data-testid="stMetricValue"] {
+        font-size: 0.9rem !important;
+        font-weight: 600 !important;
+    }
+    [data-testid="stExpander"] [data-testid="stMetricLabel"] {
+        font-size: 0.75rem !important;
+        font-weight: 500 !important;
+        white-space: normal !important;
+        line-height: 1.2 !important;
     }
 
     /* Hauptcontainer für Tab-Liste */
@@ -334,11 +349,13 @@ if not ticker_input_1:
     st.button("📊  Stockguide: Dein persöhnliches Aktiendashboard", key="home-button-landing", on_click=go_home)
     st.caption("Konzipiert für Gelegenheitsanleger zur intuitiven Analyse des Marktes.")
     st.markdown("""
-        <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 30px; border-radius: 12px; margin-bottom: 25px; border: 1px solid #334155; color: white;">
-            <h2 style="color: white; margin-top: 0px;">📊 Willkommen bei Stockguide</h2>
-            <p style="font-size: 16px; color: #cbd5e1; line-height: 1.6; margin-bottom: 0px;">
-                Dein persönliches Aktiendashboard zur schnellen und verständlichen Marktanalyse. Speziell konzipiert für Gelegenheitsanleger, um wichtige Finanzdaten übersichtlich und intuitiv darzustellen.
-            </p>
+        <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 30px; border-radius: 12px; margin-top: 10px; margin-bottom: 25px; border: 1px solid #334155; color: white;">
+            <h3 style="color: white; margin-top: 0px; margin-bottom: 15px; font-size: 20px;">Was wir dir bieten:</h3>
+            <ul style="font-size: 16px; color: #cbd5e1; line-height: 1.6; margin-bottom: 0px; padding-left: 20px;">
+                <li style="margin-bottom: 10px;"><strong>Schnelle Marktanalyse:</strong> Komplexe Börsendaten, verständlich aufbereitet.</li>
+                <li style="margin-bottom: 10px;"><strong>Klarheit statt Chaos:</strong> Ein intuitives Design, das speziell für Gelegenheitsanleger konzipiert wurde.</li>
+                <li style="margin-bottom: 0px;"><strong>Alles auf einen Blick:</strong> Die wichtigsten Finanzdaten übersichtlich in deinem persönlichen Dashboard.</li>
+            </ul>
         </div>
     """, unsafe_allow_html=True)
     
@@ -400,6 +417,7 @@ if not ticker_input_1:
 else:
     st.button("📊  Stockguide", key="home-button-detail", on_click=go_home)
     st.caption("Konzipiert für Gelegenheitsanleger zur intuitiven Analyse des Marktes.")
+    st.markdown("<div style='margin-bottom: 50px;'></div>", unsafe_allow_html=True)
     # --- DATENABRUF & VERARBEITUNG BEI AKTIVER AUSWAHL ---
     with st.spinner("🚀 Marktdaten werden aufbereitet..."):
         try:
@@ -615,7 +633,7 @@ else:
 
                 st.markdown("---")
                 st.download_button(
-                    label="📄 Diese Kurzanalyse herunterladen",
+                    label="📥 Diese Kurzanalyse herunterladen",
                     data=report_text,
                     file_name=f"Anlage_Zusammenfassung_{name_1.replace(' ', '_')}.txt",
                     mime="text/plain"
