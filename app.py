@@ -101,11 +101,13 @@ st.markdown("""
         font-weight: 600 !important;
     }
 
-    /* Farbcodierung für das Analysten-Potenzial (dritte Metrik) über Sibling-Selektoren */
-    [data-testid="element-container"]:has(.third-metric-green) ~ [data-testid="element-container"] [data-testid="column"]:nth-of-type(3) [data-testid="stMetricValue"] {
+    /* Dynamische Farbcodierung für Metriken (eingeschränkt auf unmittelbaren Nachfolgeschnitt) */
+    [data-testid="stElementContainer"]:has(.metric-value-green) + [data-testid="stElementContainer"] [data-testid="stMetricValue"],
+    [data-testid="element-container"]:has(.metric-value-green) + [data-testid="element-container"] [data-testid="stMetricValue"] {
         color: #2ecc71 !important;
     }
-    [data-testid="element-container"]:has(.third-metric-red) ~ [data-testid="element-container"] [data-testid="column"]:nth-of-type(3) [data-testid="stMetricValue"] {
+    [data-testid="stElementContainer"]:has(.metric-value-red) + [data-testid="stElementContainer"] [data-testid="stMetricValue"],
+    [data-testid="element-container"]:has(.metric-value-red) + [data-testid="element-container"] [data-testid="stMetricValue"] {
         color: #e74c3c !important;
     }
 
@@ -602,25 +604,38 @@ else:
                             col_d1 = st.columns(1)[0]
                         
                         with col_d1:
+                            if beta is not None:
+                                beta_class = "metric-value-green" if beta <= 1.0 else "metric-value-red"
+                                st.markdown(f'<div class="{beta_class}">', unsafe_allow_html=True)
                             st.metric(
                                 label="Schwankungsrisiko (Beta)",
-                                value=f"{beta:.2f}",
+                                value=f"{beta:.2f}" if beta is not None else "N/A",
                                 help="Das Beta misst, wie stark die Aktie im Vergleich zum Gesamtmarkt schwankt.\n\n• Beta > 1.0: Stärkere Schwankungen (höheres Risiko)\n• Beta = 1.0: Gleiche Schwankungen wie der Markt\n• Beta < 1.0: Ruhigere Kursbewegungen (weniger Risiko)"
                             )
+                            if beta is not None:
+                                st.markdown('</div>', unsafe_allow_html=True)
                         if target_price:
                             currency = info.get('currency', 'USD')
                             with col_d2:
+                                target_class = "metric-value-green" if target > current_price else ("metric-value-red" if target < current_price else "")
+                                if target_class:
+                                    st.markdown(f'<div class="{target_class}">', unsafe_allow_html=True)
                                 st.metric(
                                     label="Kursziel der Experten",
                                     value=f"{target:.2f} {currency}",
                                     help="Das von professionellen Finanzanalysten geschätzte durchschnittliche Kursziel der Aktie für die nächsten 12 Monate."
                                 )
+                                if target_class:
+                                    st.markdown('</div>', unsafe_allow_html=True)
                             with col_d3:
+                                pot_class = "metric-value-green" if potential >= 0 else "metric-value-red"
+                                st.markdown(f'<div class="{pot_class}">', unsafe_allow_html=True)
                                 st.metric(
                                     label="Analysten-Potenzial",
                                     value=f"{potential:+.2f}%",
                                     help="Die prozentuale Differenz zwischen dem aktuellen Kurs und dem Experten-Kursziel.\n\n• Positiver Wert: Analysten erwarten Kurssteigerungen\n• Negativer Wert: Analysten erwarten Kursrückgänge"
                                 )
+                                st.markdown('</div>', unsafe_allow_html=True)
                             st.markdown('</div>', unsafe_allow_html=True)
 
 
