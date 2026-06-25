@@ -55,9 +55,13 @@ def filter_data_by_period(df, period):
     return df.loc[start_date:]
 
 
+if "page" not in st.session_state:
+    st.session_state["page"] = "landing"
+
 def set_selected_stock(select_key):
     st.session_state["selected_option_1"] = select_key
     st.session_state["use_custom_ticker_1"] = False
+    st.session_state["page"] = "details"
 
 def handle_landing_select():
     """Triggered when the landing-page dropdown changes."""
@@ -65,12 +69,14 @@ def handle_landing_select():
     if val:
         st.session_state["selected_option_1"] = val
         st.session_state["use_custom_ticker_1"] = False
+        st.session_state["page"] = "details"
 
 def handle_custom_search():
     val = st.session_state.get("landing_search_input_val", "").upper().strip()
     if val:
         st.session_state["use_custom_ticker_1"] = True
         st.session_state["custom_ticker_input_1"] = val
+        st.session_state["page"] = "details"
 
 def go_home():
     st.session_state["selected_option_1"] = None
@@ -79,6 +85,7 @@ def go_home():
     st.session_state["custom_ticker_input_1"] = ""
     st.session_state["landing_search_input_val"] = ""
     st.session_state["landing_select_option"] = None
+    st.session_state["page"] = "landing"
 
 
 # --- CONFIGURATION & ACCESSIBLE STYLING ---
@@ -143,18 +150,32 @@ st.markdown("""
 
     /* Einzelner Tab im Normalzustand (Inaktiv) */
     .stTabs [data-baseweb="tab"] { 
-        background-color: rgba(148, 163, 184, 0.08) !important; color: #475569 !important;
-        border-radius: 6px 6px 0px 0px; padding: 10px 20px !important; 
-        border: 1px solid rgba(148, 163, 184, 0.2) !important; font-weight: 600 !important;
-        display: inline-flex !important; white-space: nowrap !important;
-        text-overflow: unset !important; overflow: visible !important;
+        background-color: rgba(148, 163, 184, 0.08) !important; 
+        color: #94a3b8 !important; /* Deutlich besserer Kontrast im Dark Mode (slate-400) */
+        font-size: 16px !important; /* Etwas größere Schrift */
+        border-radius: 6px 6px 0px 0px; 
+        padding: 12px 24px !important; /* Komfortableres Padding */
+        border: 1px solid rgba(148, 163, 184, 0.2) !important; 
+        font-weight: 600 !important;
+        display: inline-flex !important; 
+        white-space: nowrap !important;
+        text-overflow: unset !important; 
+        overflow: visible !important;
+        transition: color 0.2s ease, background-color 0.2s ease;
+    }
+    .stTabs [data-baseweb="tab"]:hover {
+        color: #cbd5e1 !important; /* Helleres Grau beim Hovern (slate-300) */
+        background-color: rgba(148, 163, 184, 0.15) !important;
     }
 
     /* Aktiver / Ausgewählter Tab */
     .stTabs [aria-selected="true"] { 
-        background-color: rgba(14, 165, 233, 0.12) !important; color: #0284c7 !important; 
-        border: 1px solid rgba(14, 165, 233, 0.4) !important; border-bottom: 4px solid #0284c7 !important; 
+        background-color: rgba(14, 165, 233, 0.12) !important; 
+        color: #38bdf8 !important; /* Leuchtendes Hellblau für perfekten Kontrast (sky-400) */
+        border: 1px solid rgba(14, 165, 233, 0.4) !important; 
+        border-bottom: 4px solid #38bdf8 !important; 
         font-weight: 700 !important;
+        font-size: 16px !important;
     }
 
     /* CSS for custom logo buttons inside the grid */
@@ -369,7 +390,7 @@ if compare_stock:
             ticker_input_2 = STOCK_OPTIONS[selected_option_2]
 
 # --- Sidebar auf der Startseite ausblenden, auf Detailseite einblenden ---
-if not ticker_input_1:
+if st.session_state.get("page", "landing") == "landing":
     st.markdown("""
         <style>
         [data-testid="stSidebar"] { display: none !important; }
@@ -378,9 +399,19 @@ if not ticker_input_1:
     """, unsafe_allow_html=True)
 
 
-if not ticker_input_1:
+if st.session_state.get("page", "landing") == "landing":
     st.button("📊  Stockguide: Dein persönliches Aktiendashboard", key="home-button-landing", on_click=go_home)
     st.caption("Konzipiert für Gelegenheitsanleger zur intuitiven Analyse des Marktes.")
+
+    # --- INFO-KARTE ---
+    with st.expander("ℹ️ Was bietet dir Stockguide?"):
+        st.markdown("""
+        - **Schnelle Marktanalyse:** Komplexe Börsendaten, verständlich aufbereitet für Gelegenheitsanleger.
+        - **Klarheit statt Chaos:** Ein intuitives Design mit einfach verständlichen Erklärungen zu jedem Begriff.
+        - **Alles auf einen Blick:** Kursverlauf, Fundamental-Kennzahlen, Rendite-Simulation und Nachrichten-Feed.
+        """)
+
+    st.markdown("<div style='margin-bottom: 30px;'></div>", unsafe_allow_html=True)
 
     # --- AKTIENAUSWAHL: Toggle-Muster identisch zur Sidebar ---
     st.markdown("### 🔍 Welche Aktie möchtest du analysieren?")
@@ -459,18 +490,15 @@ if not ticker_input_1:
 
     st.markdown("---")
 
-    # --- INFO-KARTE: Ins Expander verschoben um Hauptaktion nicht zu konkurrieren ---
-    with st.expander("ℹ️ Was bietet dir Stockguide?"):
-        st.markdown("""
-        - **Schnelle Marktanalyse:** Komplexe Börsendaten, verständlich aufbereitet für Gelegenheitsanleger.
-        - **Klarheit statt Chaos:** Ein intuitives Design mit einfach verständlichen Erklärungen zu jedem Begriff.
-        - **Alles auf einen Blick:** Kursverlauf, Fundamental-Kennzahlen, Rendite-Simulation und Nachrichten-Feed.
-        """)
-
 else:
     st.button("📊  Stockguide", key="home-button-detail", on_click=go_home)
     st.caption("Konzipiert für Gelegenheitsanleger zur intuitiven Analyse des Marktes.")
     st.markdown("<div style='margin-bottom: 50px;'></div>", unsafe_allow_html=True)
+
+    if not ticker_input_1:
+        st.info("👈 Bitte wähle eine Aktie in der Seitenleiste aus oder gib ein Ticker-Symbol ein, um die Analyse anzuzeigen.")
+        st.stop()
+
     # --- DATENABRUF & VERARBEITUNG BEI AKTIVER AUSWAHL ---
     with st.spinner("🚀 Marktdaten werden aufbereitet..."):
         try:
@@ -636,16 +664,14 @@ else:
                         showlegend=False, height=460, margin=dict(l=60, r=60, t=40, b=40)
                     )
                     col.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-                    col.markdown("""
-                        <div style="font-size: 12px; color: #64748b; background: rgba(30,41,59,0.5); border: 1px solid rgba(71,85,105,0.3); border-radius: 8px; padding: 10px 14px; margin-top: -8px; margin-bottom: 16px; line-height: 1.7;">
-                            <b style="color:#94a3b8;">So lies du das Diagramm:</b><br>
-                            🟦 <b>Bewertung (KGV):</b> Ist die Aktie günstig bewertet? (Hoch = günstig)<br>
-                            🟦 <b>Dividendenrendite:</b> Schüttet das Unternehmen regelmäßig Gewinne aus? (Hoch = mehr Ausschüttung)<br>
-                            🟦 <b>Stabilität (Beta):</b> Schwankt der Kurs wenig im Vergleich zum Markt? (Hoch = stabil)<br>
-                            🟦 <b>Kurspotenzial:</b> Erwarten Analysten Kurssteigerungen? (Hoch = mehr Potenzial)<br>
-                            🟦 <b>Aktueller Trend:</b> Liegt der Kurs über seinem 30-Tage-Durchschnitt? (Hoch = positiver Trend)
-                        </div>
-                    """, unsafe_allow_html=True)
+                    with col.expander("ℹ️ So liest du das Diagramm"):
+                        st.markdown("""
+                        - 🟦 **Bewertung (KGV):** Ist die Aktie günstig bewertet? (Hoch = günstig)
+                        - 🟦 **Dividendenrendite:** Schüttet das Unternehmen regelmäßig Gewinne aus? (Hoch = mehr Ausschüttung)
+                        - 🟦 **Stabilität (Beta):** Schwankt der Kurs wenig im Vergleich zum Markt? (Hoch = stabil)
+                        - 🟦 **Kurspotenzial:** Erwarten Analysten Kurssteigerungen? (Hoch = mehr Potenzial)
+                        - 🟦 **Aktueller Trend:** Liegt der Kurs über seinem 30-Tage-Durchschnitt? (Hoch = positiver Trend)
+                        """)
 
                     with col.expander("📝 Details zum Stärkenprofil einsehen"):
                         target_price = info.get('targetMeanPrice')
