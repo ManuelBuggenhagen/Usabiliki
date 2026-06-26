@@ -1367,60 +1367,189 @@ else:
             # --- TAB 5: NEWS & SCHLAGZEILEN ---
             with tab5:
                 st.subheader("📰 Aktuelle Berichte & Markttreiber")
-                news_cols = st.columns(2 if not df_2.empty else 1)
 
+                # --- Filter bar: [Filter-Gruppe] | [Sortierung] ---
+                filt_col1, filt_col2, filt_sep, filt_col3 = st.columns([4, 4, 0.4, 3])
 
-                def zeige_news_clean(articles, col, name):
+                zeitraum_map = {
+                    "Letzte 12 Stunden": 12,
+                    "Letzte 24 Stunden": 24,
+                    "Letzte 2 Tage": 48,
+                    "Letzte 4 Tage": 96,
+                    "Letzte Woche": 168,
+                    "Letzter Monat": 720,
+                }
+                with filt_col1:
+                    zeitraum_label = st.selectbox(
+                        "🕐 Zeitraum",
+                        options=list(zeitraum_map.keys()),
+                        index=2,
+                        key="news_zeitraum",
+                        help="Filtert Artikel nach ihrem Veröffentlichungsdatum."
+                    )
+                    max_hours = zeitraum_map[zeitraum_label]
+
+                with filt_col2:
+                    anzahl_artikel = st.selectbox(
+                        "📋 Anzahl Artikel",
+                        options=[1, 2, 4, 6, 10],
+                        index=2,
+                        key="news_anzahl",
+                        help="Maximale Anzahl der angezeigten Artikel pro Aktie."
+                    )
+
+                # Visual separator between filter group and sort
+                with filt_sep:
+                    st.markdown(
+                        "<div style='height:62px; border-left:1px solid var(--text-color); opacity:0.15; margin:auto;'></div>",
+                        unsafe_allow_html=True
+                    )
+
+                with filt_col3:
+                    sortierung = st.selectbox(
+                        "↕5 Sortierung",
+                        options=["Neueste zuerst", "Älteste zuerst"],
+                        index=0,
+                        key="news_sort",
+                        help="Reihenfolge der Artikel nach Veröffentlichungsdatum."
+                    )
+
+                # CSS for hover highlight on article cards
+                st.markdown("""
+<style>
+.news-card-link {
+    text-decoration: none !important;
+    color: inherit !important;
+    display: block;
+    margin-bottom: 12px;
+}
+.news-card {
+    border: 1px solid rgba(128, 128, 128, 0.2);
+    border-left: 4px solid var(--primary-color);
+    background: var(--secondary-background-color);
+    border-radius: 4px 8px 8px 4px;
+    padding: 12px 14px;
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+}
+.news-card-link:hover .news-card {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    background: color-mix(in srgb, var(--secondary-background-color) 92%, var(--primary-color) 8%);
+    transform: translateY(-2px);
+}
+.news-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-color);
+    line-height: 1.4;
+    transition: color 0.2s ease-in-out;
+}
+.news-card-link:hover .news-title {
+    color: var(--primary-color);
+}
+.news-card .news-meta {
+    font-size: 0.72rem;
+    color: var(--text-color);
+    opacity: 0.55;
+    margin-top: 6px;
+}
+</style>""", unsafe_allow_html=True)
+
+                from datetime import datetime, timezone
+
+                def _parse_article(art):
+                    cb = art.get('content', {})
+                    title = cb.get('title', art.get('title', 'Kein Titel verfügbar'))
+                    link = cb.get('canonicalUrl', {}).get('url', art.get('link', '#'))
+                    publisher = cb.get('provider', {}).get('displayName', art.get('publisher', 'Unbekannt'))
+                    pub_ts = cb.get('pubDate') or art.get('providerPublishTime')
+                    pub_dt = None
+                    if pub_ts:
+                        try:
+                            if isinstance(pub_ts, (int, float)):
+                                pub_dt = datetime.fromtimestamp(pub_ts, tz=timezone.utc)
+                            else:
+                                pub_dt = datetime.fromisoformat(str(pub_ts).replace("Z", "+00:00"))
+                        except Exception:
+                            pass
+                    return {"title": title, "link": link, "publisher": publisher, "pub_dt": pub_dt}
+
+                def _format_age(pub_dt, now):
+                    if not pub_dt:
+                        return ""
+                    diff = now - pub_dt
+                    hours = int(diff.total_seconds() // 3600)
+                    if hours < 1:
+                        return "vor weniger als einer Stunde"
+                    elif hours < 24:
+                        return f"vor {hours} Stunde{'n' if hours > 1 else ''}"
+                    else:
+                        days = diff.days
+                        return f"vor {days} Tag{'en' if days > 1 else ''}" if days < 7 else pub_dt.strftime("%d. %b %Y")
+
+                def _filter_sort(articles, max_hours, newest_first, limit, now, exclude_titles=None):
+                    parsed = [_parse_article(a) for a in articles]
+                    cutoff = now.timestamp() - max_hours * 3600
+                    filtered = [
+                        p for p in parsed
+                        if p["pub_dt"] is None or p["pub_dt"].timestamp() >= cutoff
+                    ]
+                    if exclude_titles:
+                        filtered = [p for p in filtered if p["title"] not in exclude_titles]
+                    filtered.sort(
+                        key=lambda p: p["pub_dt"].timestamp() if p["pub_dt"] else 0,
+                        reverse=newest_first
+                    )
+                    return filtered[:limit]
+
+                def _render_card(col, article, now):
+                    title = article["title"]
+                    link = article["link"]
+                    publisher = article["publisher"]
+                    age_str = _format_age(article["pub_dt"], now)
+                    meta = f"📰 {publisher}" + (f"  ·  🕐 {age_str}" if age_str else "")
+                    col.markdown(f"""
+<a href="{link}" target="_blank" class="news-card-link">
+    <div class="news-card">
+        <div class="news-title">{title} ↗</div>
+        <div class="news-meta">{meta}</div>
+    </div>
+</a>""", unsafe_allow_html=True)
+
+                def zeige_news_clean(articles, col, name, max_hours, limit, newest_first, now, exclude_titles=None):
                     col.markdown(f"### Schlagzeilen zu **{name}**")
                     try:
                         if not articles:
                             col.info("Derzeit liegen keine aktuellen Meldungen vor.")
-                            return
-                        from datetime import datetime, timezone
-                        now = datetime.now(timezone.utc)
-                        for art in articles[:5]:
-                            content_block = art.get('content', {})
-                            title = content_block.get('title', art.get('title', 'Kein Titel verfügbar'))
-                            link = content_block.get('canonicalUrl', {}).get('url', art.get('link', '#'))
-                            publisher = content_block.get('provider', {}).get('displayName',
-                                                                              art.get('publisher', 'Unbekannt'))
-
-                            # Veröffentlichungsdatum ermitteln und anzeigen
-                            pub_ts = content_block.get('pubDate') or art.get('providerPublishTime')
-                            date_str = ""
-                            if pub_ts:
-                                try:
-                                    if isinstance(pub_ts, (int, float)):
-                                        pub_dt = datetime.fromtimestamp(pub_ts, tz=timezone.utc)
-                                    else:
-                                        pub_dt = datetime.fromisoformat(str(pub_ts).replace("Z", "+00:00"))
-                                    diff = now - pub_dt
-                                    hours = int(diff.total_seconds() // 3600)
-                                    if hours < 1:
-                                        date_str = "vor weniger als einer Stunde"
-                                    elif hours < 24:
-                                        date_str = f"vor {hours} Stunde{'n' if hours > 1 else ''}"
-                                    else:
-                                        days = diff.days
-                                        date_str = f"vor {days} Tag{'en' if days > 1 else ''}" if days < 7 else pub_dt.strftime("%d. %b %Y")
-                                except Exception:
-                                    date_str = ""
-
-                            col.markdown(f"🔗 **[{title}]({link})**")
-                            meta = f"Quelle: {publisher}"
-                            if date_str:
-                                meta += f"  ·  🕐 {date_str}"
-                            col.caption(meta)
-                            col.markdown("---")
-                    except:
+                            return set()
+                        parsed = _filter_sort(articles, max_hours, newest_first, limit, now, exclude_titles)
+                        if not parsed:
+                            col.info(f"Keine Artikel im gewählten Zeitraum ({zeitraum_label}) gefunden.")
+                            return set()
+                        for art in parsed:
+                            _render_card(col, art, now)
+                        return {p["title"] for p in parsed}
+                    except Exception:
                         col.info("Nachrichten-Schnittstelle temporär ausgelastet.")
+                        return set()
 
+                now_utc = datetime.now(timezone.utc)
+                newest_first = (sortierung == "Neueste zuerst")
+                news_cols = st.columns(2 if not df_2.empty else 1)
 
                 news_1 = load_stock_news(ticker_input_1)
-                zeige_news_clean(news_1, news_cols[0], name_1)
+                titles_1 = zeige_news_clean(
+                    news_1, news_cols[0], name_1,
+                    max_hours, anzahl_artikel, newest_first, now_utc
+                )
                 if not df_2.empty:
                     news_2 = load_stock_news(ticker_input_2)
-                    zeige_news_clean(news_2, news_cols[1], name_2)
+                    zeige_news_clean(
+                        news_2, news_cols[1], name_2,
+                        max_hours, anzahl_artikel, newest_first, now_utc,
+                        exclude_titles=titles_1
+                    )
 
         except Exception as e:
             st.error(f"⚠️ Beim Berechnen des Interfaces ist ein Fehler aufgetreten: {e}. Bitte lade die Seite neu.")
