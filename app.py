@@ -841,7 +841,13 @@ else:
                         help="Vergleicht den Kursverlauf mit dem MSCI World Index – einer globalen Benchmark, die ~1.500 Unternehmen aus 23 Ländern abbildet. Aktiviert automatisch den prozentualen Modus.",
                         key="show_msci_val"
                     )
-                    st.caption("💡 Tipp: Die Glättungslinie zeigt den langfristigen Trend, der Schwankungskanal zeigt die typische Kursbandbreite.")
+                    # Dynamic and clearer helper tips for technical indicators
+                    if show_sma and show_bollinger:
+                        st.caption("💡 **Tipp:** Die *Glättungslinie (SMA)* zeigt den langfristigen Trend, während der *Schwankungskanal* die typische Bandbreite der Kursbewegungen abbildet.")
+                    elif show_sma:
+                        st.caption("💡 **Tipp:** Die *Glättungslinie (SMA)* glättet tägliche Schwankungen, um den langfristigen Trend deutlicher zu machen.")
+                    elif show_bollinger:
+                        st.caption("💡 **Tipp:** Der *Schwankungskanal* veranschaulicht die normale Bandbreite, in der sich der Kurs meistens bewegt.")
 
                     chart_data = pd.DataFrame()
                     chart_data[name_1] = df_1_filtered['Close']
@@ -869,7 +875,7 @@ else:
                             y=chart_data[col_name],
                             mode='lines',
                             name=col_name,
-                            line=dict(width=2.5) # etwas dickere Linie für bessere Lesbarkeit
+                            line=dict(width=2.5) 
                         ))
                     
                     fig_line.update_layout(
@@ -905,7 +911,7 @@ else:
 
                     if is_normalized_mode:
                         st.caption(
-                            "⚠️ System-Hinweis: Die vertikale Achse zeigt automatisch die **prozentuale Entwicklung (%)** seit dem Startdatum an.")
+                            "⚠️ Hinweis: Die vertikale Achse zeigt automatisch die **prozentuale Entwicklung (%)** seit dem Startdatum an.")
 
                     if show_drawdown:
                         def calc_max_drawdown(df):
