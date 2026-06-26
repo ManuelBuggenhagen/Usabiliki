@@ -972,6 +972,68 @@ else:
                 st.subheader("🏢 Firmenprofil & Kennzahlen")
                 f_cols = st.columns(2 if not df_2.empty else 1)
 
+                st.markdown("""
+<style>
+.fund-card {
+    border-radius: 0 8px 8px 0;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    background: var(--secondary-background-color);
+}
+.fund-label {
+    font-size: 0.75rem;
+    color: var(--text-color);
+    opacity: 0.65;
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.fund-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-color);
+}
+.fund-interp {
+    font-size: 0.73rem;
+    color: var(--text-color);
+    opacity: 0.65;
+    margin-top: 3px;
+}
+.fund-help {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: rgba(128,128,128,0.22);
+    color: var(--text-color);
+    font-size: 9px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.fund-bar-tick {
+    font-size: 0.72rem;
+    color: var(--text-color);
+    opacity: 0.55;
+    white-space: nowrap;
+}
+.fund-bar-track {
+    flex: 1;
+    background: rgba(128,128,128,0.22);
+    border-radius: 4px;
+    height: 8px;
+    position: relative;
+}
+.fund-bar-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-color);
+}
+</style>""", unsafe_allow_html=True)
+
                 def _farbe(status):
                     return {"gruen": "#2ecc71", "gelb": "#f0b429", "rot": "#e74c3c"}.get(status, "#888")
 
@@ -979,27 +1041,13 @@ else:
                     farbe = _farbe(status)
                     icon = {"gruen": "🟢", "gelb": "🟡", "rot": "🔴"}.get(status, "⚪")
                     help_icon = (
-                        f'<span title="{help_text}" style="'
-                        'display:inline-flex; align-items:center; justify-content:center;'
-                        'width:14px; height:14px; border-radius:50%;'
-                        'background:rgba(180,180,180,0.18); color:#bbb;'
-                        'font-size:9px; font-weight:700; cursor:help;'
-                        'margin-left:5px; vertical-align:middle; flex-shrink:0;'
-                        f'">?</span>'
+                        f'<span class="fund-help" title="{help_text}">?</span>'
                     ) if help_text else ""
                     col.markdown(f"""
-<div style="
-    border-left: 4px solid {farbe};
-    background: rgba(255,255,255,0.03);
-    border-radius: 0 8px 8px 0;
-    padding: 10px 14px;
-    margin-bottom: 10px;
-">
-    <div style="font-size:0.75rem; color:#aaa; margin-bottom:2px; display:flex; align-items:center;">
-        {icon}&nbsp;{label}{help_icon}
-    </div>
-    <div style="font-size:1.25rem; font-weight:700; color:#f0f0f0;">{value}</div>
-    <div style="font-size:0.73rem; color:#bbb; margin-top:3px;">{interpretation}</div>
+<div class="fund-card" style="border-left: 4px solid {farbe};">
+    <div class="fund-label">{icon}&nbsp;{label}{help_icon}</div>
+    <div class="fund-value">{value}</div>
+    <div class="fund-interp">{interpretation}</div>
 </div>""", unsafe_allow_html=True)
 
                 def _52w_bar(col, current, low, high, currency):
@@ -1020,29 +1068,12 @@ else:
                         interpretation = "Im mittleren Bereich des Jahres — weder besonders günstig noch teuer."
                         icon = "🟡"
                     help_52w = "Der aktuelle Kurs im Verhältnis zum 52-Wochen-Hoch und -Tief. Nah am Tief könnte auf eine günstige Einstiegsgelegenheit hindeuten, nah am Hoch auf starke Dynamik – aber auch höheres Einstiegsrisiko."
-                    help_52w_icon = (
-                        f'<span title="{help_52w}" style="'
-                        'display:inline-flex; align-items:center; justify-content:center;'
-                        'width:14px; height:14px; border-radius:50%;'
-                        'background:rgba(180,180,180,0.18); color:#bbb;'
-                        'font-size:9px; font-weight:700; cursor:help;'
-                        'margin-left:5px; vertical-align:middle; flex-shrink:0;'
-                        '">?</span>'
-                    )
                     col.markdown(f"""
-<div style="
-    border-left: 4px solid {bar_color};
-    background: rgba(255,255,255,0.03);
-    border-radius: 0 8px 8px 0;
-    padding: 10px 14px;
-    margin-bottom: 10px;
-">
-    <div style="font-size:0.75rem; color:#aaa; margin-bottom:6px; display:flex; align-items:center;">
-        {icon}&nbsp;52-Wochen-Position{help_52w_icon}
-    </div>
+<div class="fund-card" style="border-left: 4px solid {bar_color};">
+    <div class="fund-label">{icon}&nbsp;52-Wochen-Position<span class="fund-help" title="{help_52w}">?</span></div>
     <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-        <span style="font-size:0.72rem; color:#999; white-space:nowrap;">{low:.0f} {currency}</span>
-        <div style="flex:1; background:#333; border-radius:4px; height:8px; position:relative;">
+        <span class="fund-bar-tick">{low:.0f} {currency}</span>
+        <div class="fund-bar-track">
             <div style="width:{pct_clamped:.1f}%; background:{bar_color}; height:100%; border-radius:4px;"></div>
             <div style="
                 position:absolute;
@@ -1051,15 +1082,15 @@ else:
                 width:12px; height:16px;
                 background:{bar_color};
                 border-radius:3px;
-                border:2px solid #1a1a2e;
+                border:2px solid var(--background-color);
             "></div>
         </div>
-        <span style="font-size:0.72rem; color:#999; white-space:nowrap;">{high:.0f} {currency}</span>
+        <span class="fund-bar-tick">{high:.0f} {currency}</span>
     </div>
-    <div style="font-size:1.1rem; font-weight:700; color:#f0f0f0;">
+    <div class="fund-bar-value">
         {current:.2f} {currency} <span style="font-size:0.8rem; color:{bar_color};">({pct_clamped:.0f}%)</span>
     </div>
-    <div style="font-size:0.73rem; color:#bbb; margin-top:3px;">{interpretation}</div>
+    <div class="fund-interp">{interpretation}</div>
 </div>""", unsafe_allow_html=True)
 
                 def zeige_fundamentals_accessible(info, col, name):
@@ -1214,25 +1245,55 @@ else:
                     st.markdown(
                         "Vergleiche die Wertentwicklung deiner Investments für beide ausgewählten Aktien über den gewählten Zeitraum.")
 
-                    col_inv1, col_inv2 = st.columns(2)
+                    # Session state: link toggle (default: linked)
+                    if "invest_linked" not in st.session_state:
+                        st.session_state["invest_linked"] = True
+
+                    col_inv1, col_link, col_inv2 = st.columns([5, 1, 5])
+
                     with col_inv1:
                         invest_sum_1 = st.number_input(
-                            f"Investitionsbetrag für {name_1} (€):", 
-                            min_value=1, 
-                            value=1000, 
-                            step=100, 
+                            f"Investitionsbetrag für {name_1} (€):",
+                            min_value=1,
+                            value=st.session_state.get("invest_1", 1000),
+                            step=100,
                             key="invest_1",
                             help="Gib den Betrag ein, den du zu Beginn des gewählten Zeitraums in diese Aktie investiert hättest."
                         )
+
+                    # Link / Unlink icon — vertically centered between the two fields
+                    with col_link:
+                        st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+                        link_icon = "🔒" if st.session_state["invest_linked"] else "🔓"
+                        link_help = "Beträge sind gekoppelt – klicken zum Trennen" if st.session_state["invest_linked"] else "Beträge sind getrennt – klicken zum Koppeln"
+                        if st.button(link_icon, key="link_toggle", help=link_help, use_container_width=True):
+                            st.session_state["invest_linked"] = not st.session_state["invest_linked"]
+                            st.rerun()
+
                     with col_inv2:
-                        invest_sum_2 = st.number_input(
-                            f"Investitionsbetrag für {name_2} (€):", 
-                            min_value=1, 
-                            value=1000, 
-                            step=100, 
-                            key="invest_2",
-                            help="Gib den Betrag ein, den du zu Beginn des gewählten Zeitraums in die Vergleichsaktie investiert hättest."
-                        )
+                        if st.session_state["invest_linked"]:
+                            # Force session state to mirror field 1 so the disabled widget auto-updates
+                            st.session_state["invest_2"] = invest_sum_1
+                            # Mirror field 1 — show as disabled
+                            invest_sum_2 = st.number_input(
+                                f"Investitionsbetrag für {name_2} (€):",
+                                min_value=1,
+                                value=invest_sum_1,
+                                step=100,
+                                key="invest_2",
+                                disabled=True,
+                                help="Gekoppelt mit dem linken Betrag. Trenne die Felder (🔓) um unterschiedliche Beträge einzugeben."
+                            )
+                            invest_sum_2 = invest_sum_1  # belt-and-suspenders sync
+                        else:
+                            invest_sum_2 = st.number_input(
+                                f"Investitionsbetrag für {name_2} (€):",
+                                min_value=1,
+                                value=st.session_state.get("invest_2", invest_sum_1),
+                                step=100,
+                                key="invest_2",
+                                help="Gib den Betrag ein, den du zu Beginn des gewählten Zeitraums in die Vergleichsaktie investiert hättest."
+                            )
 
                     start_1, end_1 = df_1_filtered['Close'].iloc[0], df_1_filtered['Close'].iloc[-1]
                     end_val_1 = invest_sum_1 * (end_1 / start_1)
