@@ -1318,12 +1318,18 @@ else:
                                 help="Gib den Betrag ein, den du zu Beginn des gewählten Zeitraums in die Vergleichsaktie investiert hättest."
                             )
 
-                    start_1, end_1 = df_1_filtered['Close'].iloc[0], df_1_filtered['Close'].iloc[-1]
+                    # Robust data extraction using dropna() to avoid NaN division
+                    prices_1 = df_1_filtered['Close'].dropna()
+                    prices_2 = df_2_filtered['Close'].dropna()
+
+                    start_1 = prices_1.iloc[0] if not prices_1.empty else 1.0
+                    end_1 = prices_1.iloc[-1] if not prices_1.empty else 1.0
                     end_val_1 = invest_sum_1 * (end_1 / start_1)
                     profit_1 = end_val_1 - invest_sum_1
                     perf_percent_1 = (end_val_1 / invest_sum_1 - 1) * 100
 
-                    start_2, end_2 = df_2_filtered['Close'].iloc[0], df_2_filtered['Close'].iloc[-1]
+                    start_2 = prices_2.iloc[0] if not prices_2.empty else 1.0
+                    end_2 = prices_2.iloc[-1] if not prices_2.empty else 1.0
                     end_val_2 = invest_sum_2 * (end_2 / start_2)
                     profit_2 = end_val_2 - invest_sum_2
                     perf_percent_2 = (end_val_2 / invest_sum_2 - 1) * 100
@@ -1350,12 +1356,51 @@ else:
                     else:
                         st.info(f"⚖️ Beide Aktien haben in diesem Zeitraum exakt die gleiche Wertentwicklung erzielt ({perf_percent_1:.2f} %).")
 
-                    # Trajectory chart: Beide Depotwerte über Zeit
-                    traj = pd.DataFrame({
-                        f"Depot {name_1} (€)": (df_1_filtered['Close'] / df_1_filtered['Close'].iloc[0]) * invest_sum_1,
-                        f"Depot {name_2} (€)": (df_2_filtered['Close'] / df_2_filtered['Close'].iloc[0]) * invest_sum_2,
-                    })
-                    st.line_chart(traj)
+                    # Trajectory chart: Beide Depotwerte über Zeit mit Plotly
+                    fig_rechner = go.Figure()
+                    fig_rechner.add_trace(go.Scatter(
+                        x=df_1_filtered.index,
+                        y=(df_1_filtered['Close'] / start_1) * invest_sum_1,
+                        mode='lines',
+                        name=f"Depot {name_1}",
+                        line=dict(color='#3b82f6', width=2.5)
+                    ))
+                    fig_rechner.add_trace(go.Scatter(
+                        x=df_2_filtered.index,
+                        y=(df_2_filtered['Close'] / start_2) * invest_sum_2,
+                        mode='lines',
+                        name=f"Depot {name_2}",
+                        line=dict(color='#9333ea', width=2.5)
+                    ))
+                    fig_rechner.update_layout(
+                        paper_bgcolor="rgba(0,0,0,0)",
+                        plot_bgcolor="rgba(0,0,0,0)",
+                        xaxis=dict(
+                            showgrid=True,
+                            gridcolor="rgba(148, 163, 184, 0.1)",
+                            linecolor="rgba(148, 163, 184, 0.2)"
+                        ),
+                        yaxis=dict(
+                            showgrid=True,
+                            gridcolor="rgba(148, 163, 184, 0.1)",
+                            linecolor="rgba(148, 163, 184, 0.2)",
+                            ticksuffix=" €"
+                        ),
+                        height=400,
+                        margin=dict(l=10, r=10, t=10, b=10),
+                        dragmode=False,
+                        hovermode='x unified',
+                        showlegend=True,
+                        legend=dict(
+                            orientation="h",
+                            yanchor="bottom",
+                            y=1.02,
+                            xanchor="right",
+                            x=1,
+                            bgcolor="rgba(0,0,0,0)"
+                        )
+                    )
+                    st.plotly_chart(fig_rechner, use_container_width=True, config={'displayModeBar': False})
                     start_date_str = df_1_filtered.index[0].strftime("%d. %b %Y")
                     st.caption(f"📅 Simulation basiert auf historischen Kursdaten ab {start_date_str}. Vergangene Wertentwicklungen sind kein Indikator für zukünftige Ergebnisse.")
                 else:
@@ -1374,16 +1419,52 @@ else:
 
                     st.info(
                         "💡 Gib in der Seitenleiste ein zweites Vergleichsunternehmen ein, um den interaktiven Portfolio-Mixer freizuschalten.")
-                    start_price = df_1_filtered['Close'].iloc[0]
-                    end_price = df_1_filtered['Close'].iloc[-1]
+                    # Robust data extraction using dropna() to avoid NaN division
+                    prices_1 = df_1_filtered['Close'].dropna()
+                    start_price = prices_1.iloc[0] if not prices_1.empty else 1.0
+                    end_price = prices_1.iloc[-1] if not prices_1.empty else 1.0
                     end_wert = invest_sum * (end_price / start_price)
                     st.metric(label=f"Endwert deines Investments in {name_1}", value=f"{end_wert:.2f} €",
                               delta=f"{'🔺 Gewinn:' if (end_wert - invest_sum) >= 0 else '🔻 Verlust:'} {(end_wert - invest_sum):.2f} €")
 
-                    # Trajectory chart: Simulierter Depotwert über Zeit
-                    portfolio_series = (df_1_filtered['Close'] / start_price) * invest_sum
-                    portfolio_series.name = f"Depotwert {name_1} (€)"
-                    st.line_chart(portfolio_series)
+                    # Trajectory chart: Simulierter Depotwert über Zeit mit Plotly
+                    fig_rechner = go.Figure()
+                    fig_rechner.add_trace(go.Scatter(
+                        x=df_1_filtered.index,
+                        y=(df_1_filtered['Close'] / start_price) * invest_sum,
+                        mode='lines',
+                        name=f"Depot {name_1}",
+                        line=dict(color='#3b82f6', width=2.5)
+                    ))
+                    fig_rechner.update_layout(
+                        paper_bgcolor="rgba(0,0,0,0)",
+                        plot_bgcolor="rgba(0,0,0,0)",
+                        xaxis=dict(
+                            showgrid=True,
+                            gridcolor="rgba(148, 163, 184, 0.1)",
+                            linecolor="rgba(148, 163, 184, 0.2)"
+                        ),
+                        yaxis=dict(
+                            showgrid=True,
+                            gridcolor="rgba(148, 163, 184, 0.1)",
+                            linecolor="rgba(148, 163, 184, 0.2)",
+                            ticksuffix=" €"
+                        ),
+                        height=400,
+                        margin=dict(l=10, r=10, t=10, b=10),
+                        dragmode=False,
+                        hovermode='x unified',
+                        showlegend=True,
+                        legend=dict(
+                            orientation="h",
+                            yanchor="bottom",
+                            y=1.02,
+                            xanchor="right",
+                            x=1,
+                            bgcolor="rgba(0,0,0,0)"
+                        )
+                    )
+                    st.plotly_chart(fig_rechner, use_container_width=True, config={'displayModeBar': False})
                     start_date_str = df_1_filtered.index[0].strftime("%d. %b %Y")
                     st.caption(f"📅 Simulation basiert auf historischen Kursdaten ab {start_date_str}. Vergangene Wertentwicklungen sind kein Indikator für zukünftige Ergebnisse.")
 
