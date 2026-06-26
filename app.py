@@ -972,11 +972,99 @@ else:
                 st.subheader("🏢 Firmenprofil & Kennzahlen")
                 f_cols = st.columns(2 if not df_2.empty else 1)
 
+                def _farbe(status):
+                    return {"gruen": "#2ecc71", "gelb": "#f0b429", "rot": "#e74c3c"}.get(status, "#888")
+
+                def _metric_card(col, label, value, interpretation, status, help_text=""):
+                    farbe = _farbe(status)
+                    icon = {"gruen": "🟢", "gelb": "🟡", "rot": "🔴"}.get(status, "⚪")
+                    help_icon = (
+                        f'<span title="{help_text}" style="'
+                        'display:inline-flex; align-items:center; justify-content:center;'
+                        'width:14px; height:14px; border-radius:50%;'
+                        'background:rgba(180,180,180,0.18); color:#bbb;'
+                        'font-size:9px; font-weight:700; cursor:help;'
+                        'margin-left:5px; vertical-align:middle; flex-shrink:0;'
+                        f'">?</span>'
+                    ) if help_text else ""
+                    col.markdown(f"""
+<div style="
+    border-left: 4px solid {farbe};
+    background: rgba(255,255,255,0.03);
+    border-radius: 0 8px 8px 0;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+">
+    <div style="font-size:0.75rem; color:#aaa; margin-bottom:2px; display:flex; align-items:center;">
+        {icon}&nbsp;{label}{help_icon}
+    </div>
+    <div style="font-size:1.25rem; font-weight:700; color:#f0f0f0;">{value}</div>
+    <div style="font-size:0.73rem; color:#bbb; margin-top:3px;">{interpretation}</div>
+</div>""", unsafe_allow_html=True)
+
+                def _52w_bar(col, current, low, high, currency):
+                    if not (low and high and current and high > low):
+                        return
+                    pct = (current - low) / (high - low) * 100
+                    pct_clamped = max(0, min(100, pct))
+                    if pct_clamped < 30:
+                        bar_color = "#e74c3c"
+                        interpretation = "Nahe dem Jahrestief — möglicherweise günstig, aber prüfe die Gründe."
+                        icon = "🔴"
+                    elif pct_clamped > 75:
+                        bar_color = "#2ecc71"
+                        interpretation = "Nahe dem Jahreshoch — starke Kursdynamik, aber ggf. bereits teuer."
+                        icon = "🟢"
+                    else:
+                        bar_color = "#f0b429"
+                        interpretation = "Im mittleren Bereich des Jahres — weder besonders günstig noch teuer."
+                        icon = "🟡"
+                    help_52w = "Der aktuelle Kurs im Verhältnis zum 52-Wochen-Hoch und -Tief. Nah am Tief könnte auf eine günstige Einstiegsgelegenheit hindeuten, nah am Hoch auf starke Dynamik – aber auch höheres Einstiegsrisiko."
+                    help_52w_icon = (
+                        f'<span title="{help_52w}" style="'
+                        'display:inline-flex; align-items:center; justify-content:center;'
+                        'width:14px; height:14px; border-radius:50%;'
+                        'background:rgba(180,180,180,0.18); color:#bbb;'
+                        'font-size:9px; font-weight:700; cursor:help;'
+                        'margin-left:5px; vertical-align:middle; flex-shrink:0;'
+                        '">?</span>'
+                    )
+                    col.markdown(f"""
+<div style="
+    border-left: 4px solid {bar_color};
+    background: rgba(255,255,255,0.03);
+    border-radius: 0 8px 8px 0;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+">
+    <div style="font-size:0.75rem; color:#aaa; margin-bottom:6px; display:flex; align-items:center;">
+        {icon}&nbsp;52-Wochen-Position{help_52w_icon}
+    </div>
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+        <span style="font-size:0.72rem; color:#999; white-space:nowrap;">{low:.0f} {currency}</span>
+        <div style="flex:1; background:#333; border-radius:4px; height:8px; position:relative;">
+            <div style="width:{pct_clamped:.1f}%; background:{bar_color}; height:100%; border-radius:4px;"></div>
+            <div style="
+                position:absolute;
+                left:calc({pct_clamped:.1f}% - 6px);
+                top:-4px;
+                width:12px; height:16px;
+                background:{bar_color};
+                border-radius:3px;
+                border:2px solid #1a1a2e;
+            "></div>
+        </div>
+        <span style="font-size:0.72rem; color:#999; white-space:nowrap;">{high:.0f} {currency}</span>
+    </div>
+    <div style="font-size:1.1rem; font-weight:700; color:#f0f0f0;">
+        {current:.2f} {currency} <span style="font-size:0.8rem; color:{bar_color};">({pct_clamped:.0f}%)</span>
+    </div>
+    <div style="font-size:0.73rem; color:#bbb; margin-top:3px;">{interpretation}</div>
+</div>""", unsafe_allow_html=True)
 
                 def zeige_fundamentals_accessible(info, col, name):
                     col.markdown(f"### **{name}**")
 
-                    # Sektor / Branche (Kontext: Was macht das Unternehmen?)
                     sector = info.get('sector', '')
                     industry = info.get('industry', '')
                     if sector or industry:
@@ -984,76 +1072,120 @@ else:
 
                     col.markdown("---")
 
-                    # Analystenempfehlung (klarste Orientierungshilfe für Gelegenheitsanleger)
+                    # --- Analystenempfehlung ---
                     rec = info.get('recommendationKey', '')
+                    num_analysts = info.get('numberOfAnalystOpinions')
                     rec_map = {
-                        'strong_buy': '🟢 Starker Kauf',
-                        'buy':        '🟢 Kauf',
-                        'hold':       '🟡 Halten',
-                        'underperform': '🔴 Unterperformance',
-                        'sell':       '🔴 Verkaufen',
-                        'strong_sell':'🔴 Starker Verkauf',
+                        'strong_buy':   ('gruen', 'Starker Kauf'),
+                        'buy':          ('gruen', 'Kauf'),
+                        'hold':         ('gelb',  'Halten'),
+                        'underperform': ('rot',   'Unterperformance'),
+                        'sell':         ('rot',   'Verkaufen'),
+                        'strong_sell':  ('rot',   'Starker Verkauf'),
                     }
-                    rec_txt = rec_map.get(rec.lower(), '— Keine Empfehlung verfügbar') if rec else '— Keine Empfehlung verfügbar'
-                    col.metric(
-                        label="Analystenempfehlung",
-                        value=rec_txt,
-                        help="Die gebündelte Einschätzung professioneller Finanzanalysten: 'Kauf' = Analysten erwarten Kursanstieg, 'Halten' = Status quo beibehalten, 'Verkaufen' = Analysten erwarten Kursrückgang."
-                    )
+                    if rec and rec.lower() in rec_map:
+                        rec_status, rec_label = rec_map[rec.lower()]
+                    else:
+                        rec_status, rec_label = 'gelb', 'Keine Empfehlung'
+                    analyst_suffix = f" — {num_analysts} Analysten" if num_analysts else ""
+                    interp_rec = {
+                        'gruen': "Analysten erwarten mehrheitlich Kurssteigerungen.",
+                        'gelb':  "Analysten empfehlen, die Position zu halten.",
+                        'rot':   "Analysten erwarten mehrheitlich Kursverluste.",
+                    }[rec_status]
+                    _metric_card(col, f"Analystenempfehlung{analyst_suffix}", rec_label,
+                                 interp_rec, rec_status,
+                                 "Gebündelte Einschätzung professioneller Finanzanalysten.")
 
-                    col.markdown("&nbsp;", unsafe_allow_html=True)
                     m1, m2 = col.columns(2)
 
-                    # KGV
+                    # --- KGV ---
                     kgv = info.get('trailingPE')
-                    kgv_txt = f"{kgv:.1f}x" if kgv else "N/A"
-                    m1.metric(label="KGV (Bewertung)", value=kgv_txt,
-                               help="Kurs-Gewinn-Verhältnis: Wie teuer ist die Aktie im Verhältnis zum Gewinn des Unternehmens? Unter 15 gilt oft als günstig, über 40 als teuer.")
+                    if kgv:
+                        kgv_txt = f"{kgv:.1f}x"
+                        if kgv < 0:
+                            kgv_status, kgv_interp = "rot", "Negativ — das Unternehmen schreibt Verluste."
+                        elif kgv < 15:
+                            kgv_status, kgv_interp = "gruen", f"Günstig — Anleger zahlen {kgv:.0f}€ je 1€ Gewinn."
+                        elif kgv < 30:
+                            kgv_status, kgv_interp = "gelb", f"Moderat — Anleger zahlen {kgv:.0f}€ je 1€ Gewinn."
+                        else:
+                            kgv_status, kgv_interp = "rot", f"Teuer — Anleger zahlen {kgv:.0f}€ je 1€ Gewinn."
+                    else:
+                        kgv_txt, kgv_status, kgv_interp = "N/A", "gelb", "Nicht verfügbar."
+                    _metric_card(m1, "KGV (Bewertung)", kgv_txt, kgv_interp, kgv_status,
+                                 "Kurs-Gewinn-Verhältnis: unter 15 = günstig, 15–30 = moderat, über 40 = teuer.")
 
-                    # Dividende
+                    # --- Dividende ---
                     div = info.get('dividendYield')
-                    div_txt = f"{(div * 100):.2f} %" if div else "0.00 %"
-                    m2.metric(label="Dividendenrendite", value=div_txt,
-                               help="Die jährliche Gewinnausschüttung der Firma an ihre Aktionäre, in Prozent des aktuellen Aktienkurses. Höhere Werte bedeuten mehr passives Einkommen.")
+                    if div:
+                        div_pct = div * 100
+                        div_txt = f"{div_pct:.2f}%"
+                        if div_pct >= 2.0:
+                            div_status, div_interp = "gruen", f"Attraktive Ausschüttung von {div_pct:.2f}% p.a."
+                        else:
+                            div_status, div_interp = "gelb", f"Moderate Ausschüttung von {div_pct:.2f}% p.a."
+                    else:
+                        div_txt, div_status, div_interp = "0%", "gelb", "Keine Dividende — Gewinne werden reinvestiert."
+                    _metric_card(m2, "Dividendenrendite", div_txt, div_interp, div_status,
+                                 "Jährliche Gewinnausschüttung in % des Aktienkurses.")
 
                     m3, m4 = col.columns(2)
 
-                    # EPS (Gewinn je Aktie)
+                    # --- EPS ---
                     eps = info.get('trailingEps')
-                    eps_txt = f"{eps:.2f} {info.get('currency', 'USD')}" if eps else "N/A"
-                    m3.metric(label="Gewinn je Aktie (EPS)", value=eps_txt,
-                               help="Earnings Per Share: Wie viel Gewinn hat das Unternehmen pro ausgegebener Aktie erzielt? Ein positiver Wert bedeutet Gewinn, ein negativer Verlust.")
+                    currency = info.get('currency', 'USD')
+                    if eps is not None:
+                        eps_txt = f"{eps:.2f} {currency}"
+                        if eps > 0:
+                            eps_status, eps_interp = "gruen", f"Gewinnend — {eps:.2f} {currency} Gewinn je Aktie."
+                        else:
+                            eps_status, eps_interp = "rot", f"Verlustmachend — {eps:.2f} {currency} Verlust je Aktie."
+                    else:
+                        eps_txt, eps_status, eps_interp = "N/A", "gelb", "Nicht verfügbar."
+                    _metric_card(m3, "Gewinn je Aktie (EPS)", eps_txt, eps_interp, eps_status,
+                                 "Positiv = Gewinn, negativ = das Unternehmen schreibt Verluste.")
 
-                    # Börsenwert
+                    # --- Market Cap ---
                     cap = info.get('marketCap')
                     if cap:
                         if cap >= 1e12:
-                            cap_txt = f"{cap / 1e12:.2f} Bio."
+                            cap_txt = f"{cap / 1e12:.2f} Bio. {currency}"
+                            cap_interp, cap_status = "Mega-Cap — eines der größten Unternehmen weltweit.", "gruen"
+                        elif cap >= 10e9:
+                            cap_txt = f"{cap / 1e9:.2f} Mrd. {currency}"
+                            cap_interp, cap_status = "Large-Cap — stabiles Großunternehmen.", "gruen"
+                        elif cap >= 2e9:
+                            cap_txt = f"{cap / 1e9:.2f} Mrd. {currency}"
+                            cap_interp, cap_status = "Mid-Cap — mittelgroßes Unternehmen.", "gelb"
                         else:
-                            cap_txt = f"{cap / 1e9:.2f} Mrd."
-                        cap_txt += f" {info.get('currency', 'USD')}"
+                            cap_txt = f"{cap / 1e9:.2f} Mrd. {currency}"
+                            cap_interp, cap_status = "Small-Cap — kleines Unternehmen, höheres Risiko.", "rot"
                     else:
-                        cap_txt = "Unbekannt"
-                    m4.metric(label="Börsenwert (Market Cap)", value=cap_txt,
-                               help="Der Gesamtwert aller ausgegebenen Aktien des Unternehmens. Grob: unter 2 Mrd. = Small Cap, 2–10 Mrd. = Mid Cap, über 10 Mrd. = Large Cap.")
+                        cap_txt, cap_status, cap_interp = "Unbekannt", "gelb", "Nicht verfügbar."
+                    _metric_card(m4, "Börsenwert", cap_txt, cap_interp, cap_status,
+                                 "<2 Mrd = Small Cap, 2–10 Mrd = Mid Cap, >10 Mrd = Large Cap.")
 
-                    m5, m6 = col.columns(2)
-
-                    # 52-Wochen-Hoch / -Tief
+                    # --- 52-Wochen-Position ---
                     high_52 = info.get('fiftyTwoWeekHigh')
                     low_52 = info.get('fiftyTwoWeekLow')
-                    currency = info.get('currency', 'USD')
-                    if high_52 and low_52:
-                        m5.metric(label="52W-Hoch", value=f"{high_52:.2f} {currency}",
-                                   help="Der höchste Aktienkurs der letzten 52 Wochen (1 Jahr). Liegt der aktuelle Kurs nah am Hoch, ist die Aktie teuer; nah am Tief, möglicherweise günstig.")
-                        m6.metric(label="52W-Tief", value=f"{low_52:.2f} {currency}",
-                                   help="Der niedrigste Aktienkurs der letzten 52 Wochen (1 Jahr).")
+                    current_price = info.get('currentPrice') or info.get('regularMarketPrice')
+                    _52w_bar(col, current_price, low_52, high_52, currency)
 
-                    # Kurs-Buchwert-Verhältnis (P/B)
+                    # --- P/B ---
                     pb = info.get('priceToBook')
-                    pb_txt = f"{pb:.2f}x" if pb else "N/A"
-                    col.metric(label="Kurs-Buchwert (P/B)", value=pb_txt,
-                               help="Vergleicht den Börsenkurs mit dem Buchwert (dem bilanziellen Substanzwert) des Unternehmens. Ein Wert unter 1,0 bedeutet, die Aktie ist rechnerisch 'unter Substanzwert'.")
+                    if pb is not None:
+                        pb_txt = f"{pb:.2f}x"
+                        if pb < 1.0:
+                            pb_status, pb_interp = "gruen", "Unter Substanzwert — rechnerisch günstig."
+                        elif pb < 4.0:
+                            pb_status, pb_interp = "gelb", f"Moderates Aufgeld von {pb:.1f}x auf den Buchwert."
+                        else:
+                            pb_status, pb_interp = "rot", f"Hohes Aufgeld — Anleger zahlen {pb:.1f}x den Buchwert."
+                    else:
+                        pb_txt, pb_status, pb_interp = "N/A", "gelb", "Nicht verfügbar."
+                    _metric_card(col, "Kurs-Buchwert (P/B)", pb_txt, pb_interp, pb_status,
+                                 "Unter 1,0 = unter Substanzwert. Über 4 = teuer relativ zum Buchwert.")
 
 
                 zeige_fundamentals_accessible(info_1, f_cols[0], name_1)
