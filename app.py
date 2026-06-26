@@ -148,32 +148,38 @@ st.markdown("""
         overflow-x: auto !important; white-space: nowrap !important;
     }
 
-    /* Einzelner Tab im Normalzustand (Inaktiv) */
+    /* Einzelner Tab im Normalzustand (Inaktiv) - Kontraststark & Theme-sensitiv */
     .stTabs [data-baseweb="tab"] { 
-        background-color: rgba(148, 163, 184, 0.08) !important; 
-        color: #94a3b8 !important; /* Deutlich besserer Kontrast im Dark Mode (slate-400) */
+        background-color: color-mix(in srgb, var(--text-color) 4%, var(--background-color)) !important; 
+        color: color-mix(in srgb, var(--text-color) 65%, var(--background-color)) !important; 
         font-size: 16px !important; /* Etwas größere Schrift */
         border-radius: 6px 6px 0px 0px; 
         padding: 12px 24px !important; /* Komfortableres Padding */
-        border: 1px solid rgba(148, 163, 184, 0.2) !important; 
+        border: 1px solid rgba(128, 128, 128, 0.2) !important; 
         font-weight: 600 !important;
         display: inline-flex !important; 
         white-space: nowrap !important;
         text-overflow: unset !important; 
         overflow: visible !important;
-        transition: color 0.2s ease, background-color 0.2s ease;
     }
     .stTabs [data-baseweb="tab"]:hover {
-        color: #cbd5e1 !important; /* Helleres Grau beim Hovern (slate-300) */
-        background-color: rgba(148, 163, 184, 0.15) !important;
+        color: var(--text-color) !important; /* Voller Textkontrast beim Hovern */
+        background-color: color-mix(in srgb, var(--text-color) 10%, var(--background-color)) !important;
+        border-color: rgba(128, 128, 128, 0.4) !important;
+        transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+    }
+    .stTabs [data-baseweb="tab"]:focus,
+    .stTabs [data-baseweb="tab"]:active {
+        outline: none !important;
+        box-shadow: none !important;
     }
 
-    /* Aktiver / Ausgewählter Tab */
+    /* Aktiver / Ausgewählter Tab - Exzellenter Kontrast über var(--primary-color) */
     .stTabs [aria-selected="true"] { 
-        background-color: rgba(14, 165, 233, 0.12) !important; 
-        color: #38bdf8 !important; /* Leuchtendes Hellblau für perfekten Kontrast (sky-400) */
-        border: 1px solid rgba(14, 165, 233, 0.4) !important; 
-        border-bottom: 4px solid #38bdf8 !important; 
+        background-color: color-mix(in srgb, var(--primary-color) 12%, var(--background-color)) !important; 
+        color: var(--primary-color) !important; 
+        border: 1px solid color-mix(in srgb, var(--primary-color) 45%, var(--background-color)) !important; 
+        border-bottom: 4px solid var(--primary-color) !important; 
         font-weight: 700 !important;
         font-size: 16px !important;
     }
