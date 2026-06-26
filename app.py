@@ -786,11 +786,15 @@ else:
                     col_idx = 0
                     normalize = False
 
+                    # Lesen ob MSCI World aktiv ist (aus session_state, da das Checkbox-Widget erst weiter unten gerendert wird)
+                    show_msci_active = st.session_state.get("show_msci_val", False)
+
                     if not df_2_filtered.empty:
                         normalize = lab_cols[col_idx].checkbox(
                             "📊 Prozentualer Vergleich (%)", 
                             value=True,
-                            help="Aktiviert den relativen Prozentvergleich, um die Wertentwicklung beider Aktien direkt vergleichen zu können.",
+                            disabled=show_msci_active,
+                            help="Aktiviert den relativen Prozentvergleich, um die Wertentwicklung beider Aktien direkt vergleichen zu können." + (" (Automatisch aktiv, wenn MSCI World Index angezeigt wird.)" if show_msci_active else ""),
                             key="normalize_val"
                         )
                         col_idx += 1
@@ -798,9 +802,6 @@ else:
                     # Wenn MSCI World oder Prozentvergleich aktiv ist, erzwingen wir prozentuale Skalierung.
                     is_normalized_mode = normalize
 
-                    # Prüfen wir, ob MSCI Index ausgewählt werden soll (dieser muss später im Code erfasst werden)
-                    # Da show_msci weiter unten definiert ist, lesen wir es aus st.session_state, falls vorhanden:
-                    show_msci_active = st.session_state.get("show_msci_val", False)
                     if show_msci_active:
                         is_normalized_mode = True
 
@@ -969,8 +970,6 @@ else:
             # --- TAB 3: FUNDAMENTAL-ANALYSE ---
             with tab3:
                 st.subheader("🏢 Firmenprofil & Kennzahlen")
-                st.markdown(
-                    "Fahre mit der Maus über die **?**-Symbole, um eine einfache Erklärung der Fachbegriffe zu erhalten.")
                 f_cols = st.columns(2 if not df_2.empty else 1)
 
 
