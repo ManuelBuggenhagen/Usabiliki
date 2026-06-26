@@ -609,7 +609,7 @@ else:
                 kompass_cols = st.columns(2 if not df_2.empty else 1)
 
 
-                def rendere_kompass_refactored(name, df, info, col, color_theme):
+                def rendere_kompass_refactored(name, df, info, col, color_theme, show_guide=False):
                     global report_text
                     col.markdown(f"### Profil-Analyse:   {name}")
                     current_price = df['Close'].iloc[-1]
@@ -670,14 +670,15 @@ else:
                         showlegend=False, height=460, margin=dict(l=60, r=60, t=40, b=40)
                     )
                     col.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-                    with col.expander("ℹ️ So liest du das Diagramm"):
-                        st.markdown("""
-                        - 🟦 **Bewertung (KGV):** Ist die Aktie günstig bewertet? (Hoch = günstig)
-                        - 🟦 **Dividendenrendite:** Schüttet das Unternehmen regelmäßig Gewinne aus? (Hoch = mehr Ausschüttung)
-                        - 🟦 **Stabilität (Beta):** Schwankt der Kurs wenig im Vergleich zum Markt? (Hoch = stabil)
-                        - 🟦 **Kurspotenzial:** Erwarten Analysten Kurssteigerungen? (Hoch = mehr Potenzial)
-                        - 🟦 **Aktueller Trend:** Liegt der Kurs über seinem 30-Tage-Durchschnitt? (Hoch = positiver Trend)
-                        """)
+                    if show_guide:
+                        with col.expander("ℹ️ So liest du das Diagramm"):
+                            st.markdown("""
+                            - **Bewertung (KGV):** Ist die Aktie günstig bewertet? (Hoch = günstig)
+                            - **Dividendenrendite:** Schüttet das Unternehmen regelmäßig Gewinne aus? (Hoch = mehr Ausschüttung)
+                            - **Stabilität (Beta):** Schwankt der Kurs wenig im Vergleich zum Markt? (Hoch = stabil)
+                            - **Kurspotenzial:** Erwarten Analysten Kurssteigerungen? (Hoch = mehr Potenzial)
+                            - **Aktueller Trend:** Liegt der Kurs über seinem 30-Tage-Durchschnitt? (Hoch = positiver Trend)
+                            """)
 
                     with col.expander("📝 Details zum Stärkenprofil einsehen"):
                         target_price = info.get('targetMeanPrice')
@@ -731,9 +732,19 @@ else:
                 theme_blue = {'fill': 'rgba(59, 130, 246, 0.25)', 'line': '#3b82f6'}
                 theme_purple = {'fill': 'rgba(147, 51, 234, 0.25)', 'line': '#9333ea'}
 
-                rendere_kompass_refactored(name_1, df_1, info_1, kompass_cols[0], theme_blue)
-                if not df_2.empty:
-                    rendere_kompass_refactored(name_2, df_2, info_2, kompass_cols[1], theme_purple)
+                if df_2.empty:
+                    rendere_kompass_refactored(name_1, df_1, info_1, kompass_cols[0], theme_blue, show_guide=True)
+                else:
+                    rendere_kompass_refactored(name_1, df_1, info_1, kompass_cols[0], theme_blue, show_guide=False)
+                    rendere_kompass_refactored(name_2, df_2, info_2, kompass_cols[1], theme_purple, show_guide=False)
+                    with st.expander("ℹ️ So liest du das Diagramm"):
+                        st.markdown("""
+                        - **Bewertung (KGV):** Ist die Aktie günstig bewertet? (Hoch = günstig)
+                        - **Dividendenrendite:** Schüttet das Unternehmen regelmäßig Gewinne aus? (Hoch = mehr Ausschüttung)
+                        - **Stabilität (Beta):** Schwankt der Kurs wenig im Vergleich zum Markt? (Hoch = stabil)
+                        - **Kurspotenzial:** Erwarten Analysten Kurssteigerungen? (Hoch = mehr Potenzial)
+                        - **Aktueller Trend:** Liegt der Kurs über seinem 30-Tage-Durchschnitt? (Hoch = positiver Trend)
+                        """)
 
                 st.markdown("---")
                 st.download_button(
